@@ -15,28 +15,26 @@ public class Ex1
 		int direction;
 		int walls = 0;
 
-		// Select a random number
+		/* do once to choose a random direction to turn to,
+			and then check if the place ahead of it is a wall.
+			if it is a wall, then it will repeat the loop 
+			until the condition is not true anymore */
+		do {
+			// Select a random number
+			randno = (int) Math.round(Math.random()*3);
 
-		randno = (int) Math.round(Math.random()*3);
+			// Convert this to a direction
+			if (randno == 0)
+				direction = IRobot.LEFT;
+			else if (randno == 1)
+				direction = IRobot.RIGHT;
+			else if (randno == 2)
+				direction = IRobot.BEHIND;
+			else
+				direction = IRobot.AHEAD;
 
-		// Convert this to a direction
-
-		if (randno == 0)
-			direction = IRobot.LEFT;
-		else if (randno == 1)
-			direction = IRobot.RIGHT;
-		else if (randno == 2)
-			direction = IRobot.BEHIND;
-		else
-			direction = IRobot.AHEAD;
-
-		robot.face(direction); /* Face the robot in this direction */
-
-		/* if the controller look ahead and there is a wall
-			then it continues to turn left in order to
-			prevent the collision */
-		while (robot.look(IRobot.AHEAD) == IRobot.WALL)
-			robot.face(IRobot.LEFT);
+			robot.face(direction); /* Face the robot in this direction */
+		} while (robot.look(IRobot.AHEAD) == IRobot.WALL);
 
 		System.out.print("I'm going ");
 
@@ -47,7 +45,7 @@ public class Ex1
 				System.out.print("forward ");
 				break;
 			case IRobot.BEHIND:
-				System.out.print("backward ");
+				System.out.print("backwards ");
 				break;
 			case IRobot.LEFT:
 				System.out.print("left ");
