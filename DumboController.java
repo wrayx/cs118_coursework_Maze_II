@@ -6,7 +6,7 @@
 
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
-public class Ex1
+public class DumboController
 {
 
 	public void controlRobot(IRobot robot) {
