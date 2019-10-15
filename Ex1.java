@@ -13,10 +13,12 @@ public class Ex1
 
 		int randno;
 		int direction;
+		// count the num of walls surrounding the robot
 		int walls = 0;
 		/* Since there isn't a default value for the switch 
 			cases down below, the string needed to be initiallized */
 		String direction_output = "";
+		// circumstances of the robot (deadend or corridor ...)
 		String circumstances;
 
 		/* do once to choose a random direction to turn to,

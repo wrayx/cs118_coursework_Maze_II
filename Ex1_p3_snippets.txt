@@ -1,0 +1,32 @@
+Exercise 1 part 3: Assessing performance
+
+- Math.random()
+    Returns:
+    1. a pseudorandom double greater than or equal to 0.0 and 
+    less than 1.0. 
+    2. Returned values are chosen pseudorandomly with (approximately) 
+    uniform distribution from that range.
+
+
+- Math.round()
+Returns:
+    The value of the argument rounded to the *nearest* int value.
+
+|0 — 1 — 2 — 3|
+|--|---|---|--|
+In the first program we generated the pseudorandom number using 
+random function which produced the number withint the range 
+between 0-3. The numbers generated has approximatly the same 
+probability. However, when we rounded the number into integer, 
+the probability has changed shown from the above diagram. 
+The numbers has larger chance of being rounded to 1 and 2, 
+and less chance of being rounded to 0 and 3. 
+
+0 — 1 — 2 — 3 — 4
+|---|---|---|---|
+Now if we choose not to use the round() function anymore, 
+but increase the range of the random generated number to 4. 
+Tthe value will be evenly distributed within the range, and 
+the probability of each direction will be equal to 1/4. 
+(The controller only avoid the direction it is going to 
+crash into the wall)

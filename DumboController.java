@@ -20,6 +20,7 @@ public class DumboController
 		 * The default value of direction is AHEAD
 		 */
 		int direction = IRobot.AHEAD;
+		// count the num of walls surrounding the robot
 		int walls = 0;
 		/**
 		 * 1 in random_prob times it will select a new 
@@ -31,6 +32,7 @@ public class DumboController
 		 * cases down below, the string needed to be initiallized
 		*/ 
 		String direction_output = "";
+		// circumstances of the robot (deadend or corridor ...)
 		String circumstances;
 
 		random_cnt++;
