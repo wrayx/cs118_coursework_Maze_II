@@ -4,6 +4,8 @@
  * Author: Stephen Jarvis
  */
 
+// Ex 1 ONLY avoids crash into the wall + Performance Monitoring + Accessing Performance
+
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
 public class Ex1

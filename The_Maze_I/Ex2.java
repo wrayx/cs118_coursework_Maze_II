@@ -3,6 +3,27 @@
  * Created: 17 September 2002, 00:34
  * Author: Stephen Jarvis
  */
+
+/* Ex2 
+- Chooses randomly from all directions with equal probability that won’t cause a collision
+- Only change direction if to carry on ahead would cause a collision
+- irrespective of whether there is a wall ahead or not the robot will select a random 
+  direction on average every 1 in 8 moves.
+*/
+
+/*
+|0 — 1 — 2 — 3|
+|--|---|---|--|
+when we rounded the number into integer, the probability has changed 
+shown from the above diagram. The numbers has larger chance of being 
+rounded to 1 and 2, and less chance of being rounded to 0 and 3.
+
+0 — 1 — 2 — 3 — 4
+|---|---|---|---|
+Now increase the range of the random generated number to 4. The value 
+will be evenly distributed within the range, and the probability of each 
+direction will be much closer to 1/4. 
+*/
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
 public class Ex2
@@ -45,7 +66,7 @@ public class Ex2
 			randno = Math.random()*4;
 
 			// Convert this to a direction
-			if (randno > 0 && randno < 1)
+			if (randno < 1)
 				direction = IRobot.LEFT;
 			else if (randno < 2)
 				direction = IRobot.RIGHT;
