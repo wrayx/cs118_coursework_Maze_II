@@ -47,9 +47,9 @@ public class Ex2
 			// Convert this to a direction
 			if (randno > 0 && randno < 1)
 				direction = IRobot.LEFT;
-			else if (randno > 1 && randno < 2)
+			else if (randno < 2)
 				direction = IRobot.RIGHT;
-			else if (randno > 2 && randno < 3)
+			else if (randno < 3)
 				direction = IRobot.BEHIND;
 			else
 				direction = IRobot.AHEAD;
