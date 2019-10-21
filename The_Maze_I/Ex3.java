@@ -105,15 +105,15 @@ public class Ex3
           heading = IRobot.SOUTH;
           // same latitude -- there is only 1 direction that will get the robot closer to its target
           if (isTargetNorth(robot) == 0) {  
-               if (isTargetEast(robot) == 1 && lookHeading(robot, IRobot.EAST) == IRobot.PASSAGE) // Target is at the east
+               if (isTargetEast(robot) == 1 && lookHeading(robot, IRobot.EAST) != IRobot.WALL) // Target is at the east
                     heading = IRobot.EAST;
-               else if (isTargetEast(robot) == -1 && lookHeading(robot, IRobot.WEST) == IRobot.PASSAGE) // Target is at the west
+               else if (isTargetEast(robot) == -1 && lookHeading(robot, IRobot.WEST) != IRobot.WALL) // Target is at the west
                     heading = IRobot.WEST;
           }// same longtitude | still 1 direction
           else if (isTargetEast(robot) == 0) { 
-               if (isTargetNorth(robot) == 1 && lookHeading(robot, IRobot.NORTH) == IRobot.PASSAGE)
+               if (isTargetNorth(robot) == 1 && lookHeading(robot, IRobot.NORTH) != IRobot.WALL)
                     heading = IRobot.NORTH;
-               else if (isTargetNorth(robot) == -1 && lookHeading(robot, IRobot.SOUTH) == IRobot.PASSAGE)
+               else if (isTargetNorth(robot) == -1 && lookHeading(robot, IRobot.SOUTH) != IRobot.WALL)
                     heading = IRobot.SOUTH;
           } else if (isTargetNorth(robot) == 1 && isTargetEast(robot) == 1) {
                heading = chooseBet2(robot, IRobot.NORTH, IRobot.EAST);
