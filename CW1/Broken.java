@@ -8,18 +8,17 @@ import uk.ac.warwick.dcs.maze.logic.IRobot;
 
 public class Broken 
 {
-     
      public void controlRobot(IRobot robot) {
 
      // System.out.println("North = " + IRobot.NORTH);
      // System.out.println("East = " + IRobot.EAST);
      // System.out.println("South = " + IRobot.SOUTH);
      // System.out.println("West = " + IRobot.WEST);
-	
+
      int heading;
 
-     heading = headingController(robot); 
-     ControlTest.test(heading, robot); 
+     heading = headingController(robot);
+     ControlTest.test(heading, robot);
      robot.setHeading(heading);
 
      // testing
