@@ -1,8 +1,5 @@
 import uk.ac.warwick.dcs.maze.logic.IRobot;
-/**
- * one return statements?
- * java doc
- */
+
 public class Explorer {
     private int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     public void controlRobot(IRobot robot) {
@@ -128,10 +125,6 @@ public class Explorer {
         else {
             // new array for all passage exits
             int[] psExits = new int[passageExits(robot)];
-
-            /* selecting an unexplored exit if possible,
-                selecting randomly between these unexplored
-                exits if more than one is possible */
             for (int i = 0, j = 0; i < Exits.length; i++) {
                 if (robot.look(Exits[i]) == IRobot.PASSAGE)
                     psExits[j++] = Exits[i];
@@ -173,3 +166,12 @@ public class Explorer {
         return Exits;
     }
 } // end Explorer Class
+
+public class RobotData {
+    private static int maxJunctions = 10000; // Max number likely to occur
+    private static int junctionCounter; // No. of junctions stored
+    private int[] juncX; // X-coordinates of the junctions
+    private int[] juncY; // Y-coordinates of the junctions
+    private int[] arrived; // Heading the robot first arrived from
+    private RobotData[] JunctionRecorder = new RobotData[];
+}
