@@ -10,7 +10,7 @@ public class Ex1 {
     private boolean explorerMode; // true for explore, false for backtrack
     private int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     public void controlRobot(IRobot robot) {
-        int exits = nonwallExits(robot);
+        int numOfExits = nonwallExits(robot);
         int direction;
         // On the first move of the first run of a new maze
         if ((robot.getRuns() == 0) && (pollRun == 0)){
@@ -23,7 +23,7 @@ public class Ex1 {
             direction = backtrackControl(robot, robotData);
         pollRun++;
         // if the current location is an unencountered junction then record the data and print out infos
-        if (exits >= 3 && beenbeforeExits(robot) <= 1){
+        if (numOfExits >= 3 && beenbeforeExits(robot) <= 1){
             robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
             robotData.printJunction();
         }
@@ -36,13 +36,13 @@ public class Ex1 {
      * @return the number of non-WALL squares around the robot
      */
     private int nonwallExits(IRobot robot) {
-        int exits = 0;
+        int numOfExits = 0;
         // Go through each of the direction to check whether there is a wall or not
-        for (int i = 0; i < directions.length; i++) {
-            if (robot.look(directions[i]) != IRobot.WALL)
-                exits++;
+        for (int direction : directions) {
+            if (robot.look(direction) != IRobot.WALL)
+                numOfExits++;
         }
-        return exits;
+        return numOfExits;
     } // end nonwallExits()
 
     /**
@@ -50,13 +50,13 @@ public class Ex1 {
      * @return the number of PASSAGE squares around the robot
      */
     private int passageExits(IRobot robot) {
-        int psExits = 0;
+        int numOfPsExits = 0;
         // Go through each of the direction to check whether there is a wall or not
-        for (int i = 0; i < directions.length; i++) {
-            if (robot.look(directions[i]) == IRobot.PASSAGE)
-                psExits++;
+        for (int direction : directions) {
+            if (robot.look(direction) == IRobot.PASSAGE)
+                numOfPsExits++;
         }
-        return psExits;
+        return numOfPsExits;
     }
 
     /**
@@ -64,17 +64,17 @@ public class Ex1 {
      * @return the number of BEENBEFORE squares adjacent to the robot
      */
     private int beenbeforeExits(IRobot robot) {
-        int beenBefExits = 0;
+        int numOfBeenBefExits = 0;
         // Go through each of the direction to check whether there is a wall or not
-        for (int i = 0; i < directions.length; i++) {
-            if (robot.look(directions[i]) == IRobot.BEENBEFORE)
-                beenBefExits++;
+        for (int direction : directions) {
+            if (robot.look(direction) == IRobot.BEENBEFORE)
+                numOfBeenBefExits++;
         }
-        return beenBefExits;
+        return numOfBeenBefExits;
     }
 
     /**
-     * exits = 1
+     * numOfExits = 1
      * @param robot that you are trying to guide
      * if the robot isn't at the start
      * if the robot is at the start
@@ -92,39 +92,40 @@ public class Ex1 {
         return heading;
     }
     /**
-     * exits = 2
+     * numOfExits = 2
      * @param robot that you are trying to guide
      * @return the direction that haven't been before if there is one
      * otherwise just choose one that doesn't make the robot to go back on itself
      */
     private int corridor(IRobot robot) {
-        int[] Exits = exitsCanGoExBehind(robot);
-        if (Exits[0] == IRobot.BEHIND)
-            return Exits[1];
-        return Exits[0];
+        int[] exits = exitsCanGoExBehind(robot);
+        if (exits[0] == IRobot.BEHIND)
+            return exits[1];
+        return exits[0];
     }
     /**
-     * exits = 3
+     * numOfExits = 3
      * @param robot that you are trying to guide
      * @return PASSAGE exits if exist
      * if theres more than 1 PASSAGE exits, return random one between them
      * otherwise return random direction that doesn’t cause a collision.
      */
     private int junction(IRobot robot) {
-        int[] Exits = exitsCanGoExBehind(robot);
+        int[] exits = exitsCanGoExBehind(robot);
         if (passageExits(robot) == 0)
-            return chooseRandomHeading(Exits);
+            return chooseRandomHeading(exits);
         else {
             int[] psExits = new int[passageExits(robot)];
-            for (int i = 0, j = 0; i < Exits.length; i++) {
-                if (robot.look(Exits[i]) == IRobot.PASSAGE)
-                    psExits[j++] = Exits[i];
+            int j = 0;
+            for (int exit : exits) {
+                if (robot.look(exit) == IRobot.PASSAGE)
+                    psExits[j++] = exit;
             }
             return chooseRandomHeading(psExits);
         }
     }
     /**
-     * exits = 4
+     * numOfExits = 4
      * @param robot that you are trying to guide
      * @return PASSAGE exits if exist
      * if theres more than 1 PASSAGE exits, return random one between them
@@ -155,17 +156,17 @@ public class Ex1 {
      * (except go behind) that will not cause it crash into the wall
      */
     private int[] exitsCanGoExBehind(IRobot robot) {
-        int noOfExitsExBehind;
+        int numOfExitsExBehind;
         if (robot.look(IRobot.BEHIND) == IRobot.WALL)
-            noOfExitsExBehind = nonwallExits(robot);
+            numOfExitsExBehind = nonwallExits(robot);
         else
-            noOfExitsExBehind = nonwallExits(robot) - 1;
-        int[] Exits = new int[noOfExitsExBehind];
+            numOfExitsExBehind = nonwallExits(robot) - 1;
+        int[] exits = new int[numOfExitsExBehind];
         for (int i = 0, j = 0; i < directions.length - 1; i++) {
             if (robot.look(directions[i]) != IRobot.WALL)
-                Exits[j++] = directions[i];
+                exits[j++] = directions[i];
         }
-        return Exits;
+        return exits;
     }
 
     /**
@@ -181,14 +182,14 @@ public class Ex1 {
      */
     public int exploreControl(IRobot robot) {
         // System.out.println("Explore Mode Started");
-        int exits = nonwallExits(robot);
-        if (exits == 1){
+        int numOfExits = nonwallExits(robot);
+        if (numOfExits == 1){
             explorerMode = false; // start backtracking mode
             return deadEnd(robot);
         }
-        else if (exits == 2)
+        else if (numOfExits == 2)
             return corridor(robot);
-        else if (exits == 3)
+        else if (numOfExits == 3)
             return junction(robot);
         else
             return crossroads(robot);
@@ -202,10 +203,10 @@ public class Ex1 {
      */
     public int backtrackControl(IRobot robot, RobotData robotData) {
         // System.out.println("Backtracking Mode Started");
-        int exits = nonwallExits(robot);
-        if (exits == 1)
+        int numOfExits = nonwallExits(robot);
+        if (numOfExits == 1)
             return deadEnd(robot);
-        else if (exits == 2)
+        else if (numOfExits == 2)
             return corridor(robot);
         else {
             if (passageExits(robot) != 0){
@@ -292,10 +293,10 @@ class RobotData {
      * particular junction
      */
     public int searchJunction(int juncionX, int junctionY) {
-        for (int i = 0; i < junctionsInfo.length; i++) {
+        for (JunctionRecorder junctionRecord : junctionsInfo) {
             // if there is a matched (x,y) junction
-            if (junctionsInfo[i].getJuncX() == juncionX && junctionsInfo[i].getJuncY() == junctionY)
-                return junctionsInfo[i].getArrived();
+            if (junctionRecord.getJuncX() == juncionX && junctionRecord.getJuncY() == junctionY)
+                return junctionRecord.getArrived();
         }
         // finished the loop and there still isn't any match
         return -1;
