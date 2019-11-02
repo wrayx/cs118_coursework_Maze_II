@@ -22,11 +22,12 @@ public class Explorer {
             direction = crossroads(robot);
 
         pollRun++;
+        // if the current location is an unencountered junction then record the data
         if (exits >= 3 && beenbeforeExits(robot) <= 1){
             robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
             robotData.printJunction();
         }
-        robot.face(direction);
+        robot.face(direction); // face the robot to chosen direction
         // System.out.println(chooseRandomHeading(directions));
     }
 
@@ -170,33 +171,100 @@ public class Explorer {
     }
 } // end Explorer Class
 
+/**
+ * Class contains needed variables and methods to record unencountered junction
+ * and crossroad information
+ */
+class RobotData {
+    private static int maxJunctions = 10000; // Max number likely to occur
+    private static int junctionCounter; // No. of junctions stored
+    // i-th freshly unencountered junction will be stored in the i-th elements of the arrays
+    private JunctionRecorder[] junctionsInfo;
+
+    /**
+     * Constructor
+     * reset value of junctionCounter and create new JunctionRecorder array
+     */
+    public RobotData() {
+        junctionCounter = 0;
+        junctionsInfo = new JunctionRecorder[maxJunctions];
+    }
+    /** Reset Value of JunctionCounter and data stored in array */
+    public void resetJunctionCounter() {
+        junctionCounter = 0;
+        junctionsInfo = new JunctionRecorder[maxJunctions];
+    }
+    /**
+     * Record Junction's data and store them into an JunctionRecorder Array
+     * @param juncionX the 'x' axis of the junction
+     * @param junctionY the 'y' axit of the junction
+     * @param heading the heading direction when robot arrived
+     */
+    public void recordJunction(int junctionX, int junctionY, int heading) {
+        junctionsInfo[junctionCounter] = new JunctionRecorder(junctionX, junctionY, heading);
+        junctionCounter++;
+    }
+
+    /**
+     * Print out the junction details in readable format
+     * e.g. Junction 1 (x=3,y=3) heading SOUTH
+     */
+    public void printJunction() {
+        System.out.println("Junction " + junctionCounter + " (x=" +
+                            junctionsInfo[junctionCounter - 1].getJuncX() + ",y=" +
+                            junctionsInfo[junctionCounter - 1].getJuncY() + ")" + " heading " +
+                            junctionsInfo[junctionCounter - 1].getArrivedStr());
+    }
+}
+
+/**
+ * Each JunctionRecoder will store the x- and y-coordinates
+ * (to uniquely identify it) and the absolute direction which
+ * the robot arrived from when it ﬁrst encountered this junction.
+ */
 class JunctionRecorder {
     private int juncX; // X-coordinates of the junctions
     private int juncY; // Y-coordinates of the junctions
     private int arrived; // Heading the robotfirst arrived from
 
+    /** Constructor */
     public JunctionRecorder(int juncX, int juncY, int arrived) {
         this.juncX = juncX;
         this.juncY = juncY;
         this.arrived = arrived;
     }
+    /**
+     * getter for juncX value
+     * @return junction's x axis
+    */
     public int getJuncX(){
         return juncX;
     }
+    /**
+     * getter for juncY value
+     * @return junction's y axis
+    */
     public int getJuncY(){
         return juncY;
     }
+    /**
+     * getter for arrived value
+     * @return the absolute direction which the robot arrived from
+     * when it ﬁrst encountered this junction
+    */
     public int getArrived(){
         return arrived;
     }
+    /**
+     * get the absolute direction when then robot first arrived in this junction
+     * @return arrived absolute direction in string format e. g 'NORTH'
+     */
     public String getArrivedStr(){
-        int i;
-        String[] headingStr = { "North", "East", "South", "West" };
+        int i = 0;
+        String[] headingStr = { "NORTH", "EAST", "SOUTH", "WEST" };
         int[] headings = { IRobot.NORTH, IRobot.EAST, IRobot.SOUTH, IRobot.WEST };
-        for (i = 0; i < headings.length; i++) {
-            if (arrived == headings[i])
-                break;
-        }
+        while (arrived != headings[i])
+            i++;
         return headingStr[i];
     }
     // public void setArrived(int arrived){
@@ -208,33 +276,4 @@ class JunctionRecorder {
     // public void setJuncY(int juncY){
     //     this.juncY = juncY;
     // }
-}
-
-class RobotData {
-    private static int maxJunctions = 10000; // Max number likely to occur
-    private static int junctionCounter; // No. of junctions stored
-    // i-th freshly unencountered junction will be stored in the i-th elements of the arrays
-    private JunctionRecorder[] junctionsInfo;
-
-    public RobotData() {
-        this.junctionCounter = 0;
-        junctionsInfo = new JunctionRecorder[maxJunctions];
-    }
-
-    public void resetJunctionCounter() {
-        junctionCounter = 0;
-        junctionsInfo = new JunctionRecorder[maxJunctions];
-    }
-
-    public void recordJunction(int junctionX, int junctionY, int heading) {
-        junctionsInfo[junctionCounter] = new JunctionRecorder(junctionX, junctionY, heading);
-        junctionCounter++;
-    }
-
-    public void printJunction() {
-        System.out.println("Junction " + junctionCounter + "(x=" +
-                            junctionsInfo[junctionCounter-1].getJuncX() + ",y=" +
-                            junctionsInfo[junctionCounter-1].getJuncY() + ")" + " heading " +
-                            junctionsInfo[junctionCounter-1].getArrivedStr());
-    }
 }
