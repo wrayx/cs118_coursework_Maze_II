@@ -1,28 +1,28 @@
 import uk.ac.warwick.dcs.maze.logic.IRobot;
-
+/*
+initialization and reset
+Can't see whether the backtracking is working or not
+Worst case analysis: explore every places on the map
+*/
 public class Explorer {
     private int pollRun = 0; // Incremented after each pass
     private RobotData robotData; // Data store for junctions
+    private boolean explorerMode; // true for explore, false for backtrack
     private int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     public void controlRobot(IRobot robot) {
-        int exits;
-        int direction = 0;
+        int exits = nonwallExits(robot);
+        int direction;
         // On the first move of the first run of a new maze
-        if ((robot.getRuns() == 0) && (pollRun == 0))
+        if ((robot.getRuns() == 0) && (pollRun == 0)){
             robotData = new RobotData(); //reset the data store
-
-        exits = nonwallExits(robot);
-        if (exits == 1)
-            direction = deadEnd(robot);
-        else if (exits == 2)
-            direction = corridor(robot);
-        else if (exits == 3)
-            direction = junction(robot);
+            explorerMode = true; // set to Explore-mode at the very beginning
+        }
+        if (explorerMode)
+            direction = exploreControl(robot);
         else
-            direction = crossroads(robot);
-
+            direction = backtrackControl(robot, robotData);
         pollRun++;
-        // if the current location is an unencountered junction then record the data
+        // if the current location is an unencountered junction then record the data and print out infos
         if (exits >= 3 && beenbeforeExits(robot) <= 1){
             robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
             robotData.printJunction();
@@ -84,6 +84,7 @@ public class Explorer {
     private int deadEnd(IRobot robot) {
         int heading = IRobot.BEHIND;
         if (robot.look(heading) != IRobot.BEENBEFORE) {
+            explorerMode = true; // if it's still the very first step the robot took
             if (exitsCanGoExBehind(robot).length == 0)
                 heading = IRobot.BEHIND;
             heading = exitsCanGoExBehind(robot)[0];
@@ -148,6 +149,7 @@ public class Explorer {
         int randno = temp.intValue();
         return directionsChooseFrom[randno];
     }
+
     /**
      * @return array with all the exits that robot can go
      * (except go behind) that will not cause it crash into the wall
@@ -166,10 +168,75 @@ public class Explorer {
         return Exits;
     }
 
+    /**
+     * reset the junctionCounter with the reset button
+     */
     public void reset() {
         robotData.resetJunctionCounter();
     }
-} // end Explorer Class
+
+    /**
+     * @param robot the robot trying to guide
+     * @return the relative heading the robot should go to in exploring mode
+     */
+    public int exploreControl(IRobot robot) {
+        System.out.println("Explore Mode Started");
+        int exits = nonwallExits(robot);
+        if (exits == 1){
+            explorerMode = false; // start backtracking mode
+            return deadEnd(robot);
+        }
+        else if (exits == 2)
+            return corridor(robot);
+        else if (exits == 3)
+            return junction(robot);
+        else
+            return crossroads(robot);
+    }
+
+    /**
+     * @param robot the robot trying to guide
+     * @return the relative heading the robot should go to in backtracking mode
+     * when encounter no passage exit junctions:
+     * exit the junction the opposite way to which it FIRST entered the junction
+     */
+    public int backtrackControl(IRobot robot, RobotData robotData) {
+        System.out.println("Backtracking Mode Started");
+        int exits = nonwallExits(robot);
+        if (exits == 1)
+            return deadEnd(robot);
+        else if (exits == 2)
+            return corridor(robot);
+        else {
+            if (passageExits(robot) != 0){
+                explorerMode = true;
+                return exploreControl(robot);  // switch back into explorer mode
+            }
+            else {
+                int preDirection = robotData.searchJunction(robot.getLocation().x, robot.getLocation().y);
+                if (preDirection != -1){
+                    // exit the junction the opposite way to which it FIRST entered the junction
+                    robot.setHeading(reverseAbsDirection(preDirection));
+                    return IRobot.AHEAD;
+                } else { // the first time robot encounter this junction
+                    explorerMode = true;
+                    return junction(robot);
+                } // end if (preDirection != -1)
+            } // end else
+        }// end else for exit >= 3
+    } // end backtrackControl()
+
+    /**
+     * @param absDirection the absolute direction needed to be reversed
+     * @return the reversed absolute direction
+     */
+    public int reverseAbsDirection(int absDirection) {
+        if ((absDirection - IRobot.NORTH) < 2)
+            return absDirection + 2;
+        else
+            return absDirection - 2;
+    }
+}
 
 /**
  * Class contains needed variables and methods to record unencountered junction
@@ -189,11 +256,13 @@ class RobotData {
         junctionCounter = 0;
         junctionsInfo = new JunctionRecorder[maxJunctions];
     }
+
     /** Reset Value of JunctionCounter and data stored in array */
     public void resetJunctionCounter() {
         junctionCounter = 0;
         junctionsInfo = new JunctionRecorder[maxJunctions];
     }
+
     /**
      * Record Junction's data and store them into an JunctionRecorder Array
      * @param juncionX the 'x' axis of the junction
@@ -210,10 +279,26 @@ class RobotData {
      * e.g. Junction 1 (x=3,y=3) heading SOUTH
      */
     public void printJunction() {
-        System.out.println("Junction " + junctionCounter + " (x=" +
-                            junctionsInfo[junctionCounter - 1].getJuncX() + ",y=" +
-                            junctionsInfo[junctionCounter - 1].getJuncY() + ")" + " heading " +
-                            junctionsInfo[junctionCounter - 1].getArrivedStr());
+        System.out.println("Junction " + junctionCounter +
+                         " (x=" + junctionsInfo[junctionCounter - 1].getJuncX() +
+                         ",y=" + junctionsInfo[junctionCounter - 1].getJuncY() + ")" +
+                         " heading " + junctionsInfo[junctionCounter - 1].getArrivedStr());
+    }
+
+    /**
+     * @param junctionX x axis of the junction needed to be searched
+     * @param junctionY y axis of the junction needed to be searched
+     * @return The robot’s heading when it ﬁrst encountered this
+     * particular junction
+     */
+    public int searchJunction(int juncionX, int junctionY) {
+        for (int i = 0; i < junctionsInfo.length; i++) {
+            // if there is a matched (x,y) junction
+            if (junctionsInfo[i].getJuncX() == juncionX && junctionsInfo[i].getJuncY() == junctionY)
+                return junctionsInfo[i].getArrived();
+        }
+        // finished the loop and there still isn't any match
+        return -1;
     }
 }
 
@@ -267,13 +352,4 @@ class JunctionRecorder {
             i++;
         return headingStr[i];
     }
-    // public void setArrived(int arrived){
-    //     this.arrived = arrived;
-    // }
-    // public void setJuncX(int juncX){
-    //     this.juncX = juncX;
-    // }
-    // public void setJuncY(int juncY){
-    //     this.juncY = juncY;
-    // }
 }

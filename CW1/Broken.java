@@ -83,7 +83,7 @@ public class Broken
                looking_at = robot.look(IRobot.LEFT);
           else if (heading == robot.getHeading() + 1 || heading == robot.getHeading() - 3)
                looking_at = robot.look(IRobot.RIGHT);
-          else 
+          else
                looking_at = robot.look(IRobot.BEHIND);
 
           return looking_at;
