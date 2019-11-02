@@ -1,4 +1,5 @@
 import uk.ac.warwick.dcs.maze.logic.IRobot;
+import java.util.Stack;
 /*
 initialization and reset
 Can't see whether the backtracking is working or not
@@ -23,8 +24,8 @@ public class Explorer {
         pollRun++;
         // if the current location is an unencountered junction then record the data and print out infos
         if (nonwallExits(robot) >= 3 && beenbeforeExits(robot) <= 1){
-            robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
-            robotData.printJunction();
+            robotData.addArrivedHeading(robot.getHeading());
+            robotData.printRecordedData();
         }
         robot.face(direction); // face the robot to chosen direction
         // System.out.println(chooseRandomHeading(directions));
@@ -213,15 +214,14 @@ public class Explorer {
                 return exploreControl(robot);  // switch back into explorer mode
             }
             else {
-                int preDirection = robotData.searchJunction(robot.getLocation().x, robot.getLocation().y);
-                if (preDirection != -1){
-                    // exit the junction the opposite way to which it FIRST entered the junction
-                    robot.setHeading(reverseAbsDirection(preDirection));
-                    return IRobot.AHEAD;
-                } else { // the first time robot encounter this junction
+                // the first time robot encounter this junction
+                if (nonwallExits(robot) >= 3 && beenbeforeExits(robot) <= 1) {
                     explorerMode = true;
                     return junction(robot);
-                } // end if (preDirection != -1)
+                } else { // robot has been to this junction
+                    robot.setHeading(reverseAbsDirection(robotData.popLastJunctionHeading()));
+                    return IRobot.AHEAD;
+                }
             } // end else
         }// end else for exit >= 3
     } // end backtrackControl()
@@ -243,113 +243,48 @@ public class Explorer {
  * and crossroad information
  */
 class RobotData {
-    private static int maxJunctions = 10000; // Max number likely to occur
-    private static int junctionCounter; // No. of junctions stored
-    // i-th freshly unencountered junction will be stored in the i-th elements of the arrays
-    private JunctionRecorder[] junctionsInfo;
+    Stack<Integer> arrivedDirectionStack;
 
     /**
      * Constructor
      * reset value of junctionCounter and create new JunctionRecorder array
      */
     public RobotData() {
-        junctionCounter = 0;
-        junctionsInfo = new JunctionRecorder[maxJunctions];
+        arrivedDirectionStack = new Stack<Integer>();
     }
 
     /** Reset Value of JunctionCounter and data stored in array */
     public void resetJunctionCounter() {
-        junctionCounter = 0;
-        junctionsInfo = new JunctionRecorder[maxJunctions];
+        arrivedDirectionStack = new Stack<Integer>();
     }
 
     /**
      * Record Junction's data and store them into an JunctionRecorder Array
-     * @param juncionX the 'x' axis of the junction
-     * @param junctionY the 'y' axit of the junction
      * @param heading the heading direction when robot arrived
      */
-    public void recordJunction(int junctionX, int junctionY, int heading) {
-        junctionsInfo[junctionCounter] = new JunctionRecorder(junctionX, junctionY, heading);
-        junctionCounter++;
+    public void addArrivedHeading(int heading) {
+        arrivedDirectionStack.push(heading);
     }
 
-    /**
-     * Print out the junction details in readable format
-     * e.g. Junction 1 (x=3,y=3) heading SOUTH
-     */
-    public void printJunction() {
-        System.out.println("Junction " + junctionCounter +
-                         " (x=" + junctionsInfo[junctionCounter - 1].getJuncX() +
-                         ",y=" + junctionsInfo[junctionCounter - 1].getJuncY() + ")" +
-                         " heading " + junctionsInfo[junctionCounter - 1].getArrivedStr());
+    public int popLastJunctionHeading() {
+        return arrivedDirectionStack.pop();
     }
 
-    /**
-     * @param junctionX x axis of the junction needed to be searched
-     * @param junctionY y axis of the junction needed to be searched
-     * @return The robot’s heading when it ﬁrst encountered this
-     * particular junction
-     */
-    public int searchJunction(int juncionX, int junctionY) {
-        for (JunctionRecorder junctionRecord : junctionsInfo) {
-            // if there is a matched (x,y) junction
-            if (junctionRecord.getJuncX() == juncionX && junctionRecord.getJuncY() == junctionY)
-                return junctionRecord.getArrived();
-        }
-        // finished the loop and there still isn't any match
-        return -1;
+    /** testing methods */
+    public int getLastJunctionHeading() {
+        return arrivedDirectionStack.peek();
     }
-}
 
-/**
- * Each JunctionRecoder will store the x- and y-coordinates
- * (to uniquely identify it) and the absolute direction which
- * the robot arrived from when it ﬁrst encountered this junction.
- */
-class JunctionRecorder {
-    private int juncX; // X-coordinates of the junctions
-    private int juncY; // Y-coordinates of the junctions
-    private int arrived; // Heading the robotfirst arrived from
-
-    /** Constructor */
-    public JunctionRecorder(int juncX, int juncY, int arrived) {
-        this.juncX = juncX;
-        this.juncY = juncY;
-        this.arrived = arrived;
-    }
-    /**
-     * getter for juncX value
-     * @return junction's x axis
-    */
-    public int getJuncX(){
-        return juncX;
-    }
-    /**
-     * getter for juncY value
-     * @return junction's y axis
-    */
-    public int getJuncY(){
-        return juncY;
-    }
-    /**
-     * getter for arrived value
-     * @return the absolute direction which the robot arrived from
-     * when it ﬁrst encountered this junction
-    */
-    public int getArrived(){
-        return arrived;
-    }
-    /**
-     * get the absolute direction when then robot first arrived in this junction
-     * @return arrived absolute direction in string format e. g 'NORTH'
-     */
-    public String getArrivedStr(){
+    public String getLastJunctionHeadingStr() {
         int i = 0;
         String[] headingStr = { "NORTH", "EAST", "SOUTH", "WEST" };
         int[] headings = { IRobot.NORTH, IRobot.EAST, IRobot.SOUTH, IRobot.WEST };
-        while (arrived != headings[i])
+        while (arrivedDirectionStack.peek() != headings[i])
             i++;
         return headingStr[i];
     }
+    public void printRecordedData() {
+        System.out.println("Heading Recorded: " + getLastJunctionHeadingStr());
+    }
+
 }
