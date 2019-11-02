@@ -1,10 +1,16 @@
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
 public class Explorer {
+    private int pollRun = 0; // Incremented after each pass
+    private RobotData robotData; // Data store for junctions
     private int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     public void controlRobot(IRobot robot) {
         int exits;
         int direction = 0;
+        // On the first move of the first run of a new maze
+        if ((robot.getRuns() == 0) && (pollRun == 0))
+            robotData = new RobotData(); //reset the data store
+
         exits = nonwallExits(robot);
         if (exits == 1)
             direction = deadEnd(robot);
@@ -15,6 +21,11 @@ public class Explorer {
         else
             direction = crossroads(robot);
 
+        pollRun++;
+        if (exits >= 3 && beenbeforeExits(robot) <= 1){
+            robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
+            robotData.printJunction();
+        }
         robot.face(direction);
         // System.out.println(chooseRandomHeading(directions));
     }
@@ -51,14 +62,14 @@ public class Explorer {
      * @param robot that you are trying to guide
      * @return the number of BEENBEFORE squares adjacent to the robot
      */
-    private int passageExits(IRobot robot) {
-        int beenBeforeExits = 0;
+    private int beenbeforeExits(IRobot robot) {
+        int beenBefExits = 0;
         // Go through each of the direction to check whether there is a wall or not
         for (int i = 0; i < directions.length; i++) {
-            if (robot.look(directions[i]) == IRobot.PASSAGE)
-                beenBeforeExits++;
+            if (robot.look(directions[i]) == IRobot.BEENBEFORE)
+                beenBefExits++;
         }
-        return beenBeforeExits;
+        return beenBefExits;
     }
 
     /**
@@ -93,8 +104,9 @@ public class Explorer {
     /**
      * exits = 3
      * @param robot that you are trying to guide
-     * @return PASSAGE exit if exit
-     * otherwise return random direction between all non-wall exits
+     * @return PASSAGE exits if exist
+     * if theres more than 1 PASSAGE exits, return random one between them
+     * otherwise return random direction that doesn’t cause a collision.
      */
     private int junction(IRobot robot) {
         int[] Exits = exitsCanGoExBehind(robot);
@@ -117,20 +129,7 @@ public class Explorer {
      * otherwise return random direction that doesn’t cause a collision.
      */
     private int crossroads(IRobot robot) {
-        int[] Exits = exitsCanGoExBehind(robot);
-        /* if there are no unexplored exits, randomly
-            selecting a direction that doesn’t cause a collision */
-        if (passageExits(robot) == 0)
-            return chooseRandomHeading(Exits);
-        else {
-            // new array for all passage exits
-            int[] psExits = new int[passageExits(robot)];
-            for (int i = 0, j = 0; i < Exits.length; i++) {
-                if (robot.look(Exits[i]) == IRobot.PASSAGE)
-                    psExits[j++] = Exits[i];
-            }
-            return chooseRandomHeading(psExits);
-        }
+        return junction(robot);
     }
 
     /**
@@ -165,13 +164,77 @@ public class Explorer {
         }
         return Exits;
     }
+
+    public void reset() {
+        robotData.resetJunctionCounter();
+    }
 } // end Explorer Class
 
-public class RobotData {
+class JunctionRecorder {
+    private int juncX; // X-coordinates of the junctions
+    private int juncY; // Y-coordinates of the junctions
+    private int arrived; // Heading the robotfirst arrived from
+
+    public JunctionRecorder(int juncX, int juncY, int arrived) {
+        this.juncX = juncX;
+        this.juncY = juncY;
+        this.arrived = arrived;
+    }
+    public int getJuncX(){
+        return juncX;
+    }
+    public int getJuncY(){
+        return juncY;
+    }
+    public int getArrived(){
+        return arrived;
+    }
+    public String getArrivedStr(){
+        int i;
+        String[] headingStr = { "North", "East", "South", "West" };
+        int[] headings = { IRobot.NORTH, IRobot.EAST, IRobot.SOUTH, IRobot.WEST };
+        for (i = 0; i < headings.length; i++) {
+            if (arrived == headings[i])
+                break;
+        }
+        return headingStr[i];
+    }
+    // public void setArrived(int arrived){
+    //     this.arrived = arrived;
+    // }
+    // public void setJuncX(int juncX){
+    //     this.juncX = juncX;
+    // }
+    // public void setJuncY(int juncY){
+    //     this.juncY = juncY;
+    // }
+}
+
+class RobotData {
     private static int maxJunctions = 10000; // Max number likely to occur
     private static int junctionCounter; // No. of junctions stored
-    private int[] juncX; // X-coordinates of the junctions
-    private int[] juncY; // Y-coordinates of the junctions
-    private int[] arrived; // Heading the robot first arrived from
-    private RobotData[] JunctionRecorder = new RobotData[];
+    // i-th freshly unencountered junction will be stored in the i-th elements of the arrays
+    private JunctionRecorder[] junctionsInfo;
+
+    public RobotData() {
+        this.junctionCounter = 0;
+        junctionsInfo = new JunctionRecorder[maxJunctions];
+    }
+
+    public void resetJunctionCounter() {
+        junctionCounter = 0;
+        junctionsInfo = new JunctionRecorder[maxJunctions];
+    }
+
+    public void recordJunction(int junctionX, int junctionY, int heading) {
+        junctionsInfo[junctionCounter] = new JunctionRecorder(junctionX, junctionY, heading);
+        junctionCounter++;
+    }
+
+    public void printJunction() {
+        System.out.println("Junction " + junctionCounter + "(x=" +
+                            junctionsInfo[junctionCounter-1].getJuncX() + ",y=" +
+                            junctionsInfo[junctionCounter-1].getJuncY() + ")" + " heading " +
+                            junctionsInfo[junctionCounter-1].getArrivedStr());
+    }
 }
