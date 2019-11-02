@@ -10,7 +10,6 @@ public class Ex1 {
     private boolean explorerMode; // true for explore, false for backtrack
     private int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     public void controlRobot(IRobot robot) {
-        int numOfExits = nonwallExits(robot);
         int direction;
         // On the first move of the first run of a new maze
         if ((robot.getRuns() == 0) && (pollRun == 0)){
@@ -23,7 +22,7 @@ public class Ex1 {
             direction = backtrackControl(robot, robotData);
         pollRun++;
         // if the current location is an unencountered junction then record the data and print out infos
-        if (numOfExits >= 3 && beenbeforeExits(robot) <= 1){
+        if (nonwallExits(robot) >= 3 && beenbeforeExits(robot) <= 1){
             robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
             robotData.printJunction();
         }
