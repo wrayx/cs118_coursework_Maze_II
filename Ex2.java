@@ -209,19 +209,13 @@ public class Ex2 {
         else if (numOfExits == 2)
             return corridor(robot);
         else {
-            if (passageExits(robot) != 0){
+            if (passageExits(robot) != 0){ // there's still passage exits
                 explorerMode = true;
                 return exploreControl(robot);  // switch back into explorer mode
             }
-            else {
-                // the first time robot encounter this junction
-                if (nonwallExits(robot) >= 3 && beenbeforeExits(robot) <= 1) {
-                    explorerMode = true;
-                    return junction(robot);
-                } else { // robot has been to this junction
-                    robot.setHeading(reverseAbsDirection(robotData.popLastJunctionHeading()));
-                    return IRobot.AHEAD;
-                }
+            else { // robot has been to this junction and there is no passage exit
+                robot.setHeading(reverseAbsDirection(robotData.popLastJunctionHeading()));
+                return IRobot.AHEAD;
             } // end else
         }// end else for exit >= 3
     } // end backtrackControl()
