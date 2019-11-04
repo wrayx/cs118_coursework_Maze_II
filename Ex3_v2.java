@@ -1,20 +1,21 @@
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 import java.util.Stack;
 
-/*
+/**
+ * @version with array that contains location of junctions
 initialization and reset
 Can't see whether the backtracking is working or not
 Worst case analysis: explore every places on the map
 static or not for exploremode?
-*/
-public class Ex3 {
+ */
+public class Ex3_v2 {
     private int pollRun = 0; // Incremented after each pass
     private RobotData robotData; // Data store for junctions
     private boolean explorerMode; // true for explore, false for backtrack
     private Remark remarkMap;
     private int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
-    private int mapLength = 35;
-    private int mapWidth = 35;
+    private int mapLength = 200;
+    private int mapWidth = 200;
     public void controlRobot(IRobot robot) {
         int direction;
         // On the first move of the first run of a new maze
@@ -23,20 +24,20 @@ public class Ex3 {
             remarkMap = new Remark(mapLength, mapWidth);
             explorerMode = true; // set to Explore-mode at the very beginning
         }
-        do {
+        // do {
             if (explorerMode)
                 direction = exploreControl(robot);
             else
                 direction = backtrackControl(robot);
-        } while (robot.look(direction) == IRobot.WALL);
+        // } while (robot.look(direction) == IRobot.WALL);
         pollRun++;
         // if the current location is an unencountered junction then record the data and print out infos
         if (nonwallExits(robot) >= 3 && beenbeforeExits(robot) <= 1){
-            robotData.addArrivedHeading(robot.getHeading());
+            robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
             System.out.println("("+robot.getLocation().x+", "+robot.getLocation().y+") added: ");
-            robotData.printRecordedData();
+            robotData.printJunction();
         }
-        if (isRoute(robot) || nonwallExits(robot) < 2)
+        if (isRoute(robot))
             remarkMap.markCurrentBlock(robot);
 
         remarkMap.printMarks(robot);
@@ -57,21 +58,19 @@ public class Ex3 {
         return numOfExits;
     } // end nonwallExits()
 
-    private Boolean isRoute(IRobot robot) { // mark physical corridor and deadend (not corner)
-        // check for physical number of exits
+    private Boolean isRoute(IRobot robot) {
+        // check for physical number of exit
         int numOfExits = 0;
         // Go through each of the direction to check whether there is a wall or not
         for (int direction : directions) {
             if (robot.look(direction) != IRobot.WALL)
                 numOfExits++;
         }
-        if (numOfExits = 2){
+        if (numOfExits < 3){
             for (int i = 0; i < directions.length; i++) {
                 if (robot.look(directions[i]) != IRobot.WALL && robot.look(reverseRelativeDirection(directions[i])) != IRobot.WALL)
                     return true;
             }
-            if (numOfExits == 1)
-                return true;
         }// end if
         return false;
     }
@@ -202,7 +201,7 @@ public class Ex3 {
      * reset the junctionCounter with the reset button
      */
     public void reset() {
-        robotData.resetJunctionRecorder();
+        robotData.resetJunctionCounter();
         remarkMap.resetRemarkMap(mapLength, mapLength);
     }
 
@@ -244,9 +243,14 @@ public class Ex3 {
                 return exploreControl(robot);
             }
             else { // no passage exit
-                robot.setHeading(reverseAbsDirection(robotData.popLastJunctionHeading()));
-                // remarkMap.mark(robot, IRobot.AHEAD);
-                return IRobot.AHEAD;
+                if (robotData.searchJunction(robot.getLocation().x, robot.getLocation().y) != -1){
+                    robot.setHeading(reverseAbsDirection(robotData.searchJunction(robot.getLocation().x, robot.getLocation().y)));
+                    return IRobot.AHEAD;
+                } else {
+                    explorerMode = true; // switch back into explorer mode
+                    return exploreControl(robot);
+                }
+
             }
         }// end else for exit > 2
     } // end backtrackControl()
@@ -276,52 +280,115 @@ public class Ex3 {
  * and crossroad information
  */
 class RobotData {
-    Stack<Integer> arrivedDirectionStack;
+    private static int maxJunctions = 10000; // Max number likely to occur
+    private static int junctionCounter; // No. of junctions stored
+    // i-th freshly unencountered junction will be stored in the i-th elements of the arrays
+    private JunctionRecorder[] junctionsInfo;
+
     /**
      * Constructor
      * reset value of junctionCounter and create new JunctionRecorder array
      */
     public RobotData() {
-        arrivedDirectionStack = new Stack<Integer>();
+        junctionCounter = 0;
+        junctionsInfo = new JunctionRecorder[maxJunctions];
     }
 
     /** Reset Value of JunctionCounter and data stored in array */
-    public void resetJunctionRecorder() {
-        arrivedDirectionStack = new Stack<Integer>();
+    public void resetJunctionCounter() {
+        junctionCounter = 0;
+        junctionsInfo = new JunctionRecorder[maxJunctions];
     }
 
     /**
      * Record Junction's data and store them into an JunctionRecorder Array
+     * @param juncionX the 'x' axis of the junction
+     * @param junctionY the 'y' axit of the junction
      * @param heading the heading direction when robot arrived
      */
-    public void addArrivedHeading(int heading) {
-        arrivedDirectionStack.push(heading);
+    public void recordJunction(int junctionX, int junctionY, int heading) {
+        junctionsInfo[junctionCounter] = new JunctionRecorder(junctionX, junctionY, heading);
+        junctionCounter++;
     }
 
-    public int popLastJunctionHeading() {
-        return arrivedDirectionStack.pop();
+    /**
+     * Print out the junction details in readable format
+     * e.g. Junction 1 (x=3,y=3) heading SOUTH
+     */
+    public void printJunction() {
+        System.out.println("Junction " + junctionCounter +
+                         " (x=" + junctionsInfo[junctionCounter - 1].getJuncX() +
+                         ",y=" + junctionsInfo[junctionCounter - 1].getJuncY() + ")" +
+                         " heading " + junctionsInfo[junctionCounter - 1].getArrivedStr());
     }
 
-    /** testing methods */
-    public int getLastJunctionHeading() {
-        return arrivedDirectionStack.peek();
+    /**
+     * @param junctionX x axis of the junction needed to be searched
+     * @param junctionY y axis of the junction needed to be searched
+     * @return The robot’s heading when it ﬁrst encountered this
+     * particular junction
+     */
+    public int searchJunction(int junctionX, int junctionY) {
+        for (JunctionRecorder junctionRecord : junctionsInfo) {
+            // if there is a matched (x,y) junction
+            if (junctionRecord.getJuncX() == junctionX && junctionRecord.getJuncY() == junctionY)
+                return junctionRecord.getArrived();
+        }
+        // finished the loop and there still isn't any match
+        return -1;
     }
+}
 
-    public String getLastJunctionHeadingStr() {
+/**
+ * Each JunctionRecoder will store the x- and y-coordinates
+ * (to uniquely identify it) and the absolute direction which
+ * the robot arrived from when it ﬁrst encountered this junction.
+ */
+class JunctionRecorder {
+    private int juncX; // X-coordinates of the junctions
+    private int juncY; // Y-coordinates of the junctions
+    private int arrived; // Heading the robotfirst arrived from
+
+    /** Constructor */
+    public JunctionRecorder(int juncX, int juncY, int arrived) {
+        this.juncX = juncX;
+        this.juncY = juncY;
+        this.arrived = arrived;
+    }
+    /**
+     * getter for juncX value
+     * @return junction's x axis
+    */
+    public int getJuncX(){
+        return juncX;
+    }
+    /**
+     * getter for juncY value
+     * @return junction's y axis
+    */
+    public int getJuncY(){
+        return juncY;
+    }
+    /**
+     * getter for arrived value
+     * @return the absolute direction which the robot arrived from
+     * when it ﬁrst encountered this junction
+    */
+    public int getArrived(){
+        return arrived;
+    }
+    /**
+     * get the absolute direction when then robot first arrived in this junction
+     * @return arrived absolute direction in string format e. g 'NORTH'
+     */
+    public String getArrivedStr(){
         int i = 0;
         String[] headingStr = { "NORTH", "EAST", "SOUTH", "WEST" };
         int[] headings = { IRobot.NORTH, IRobot.EAST, IRobot.SOUTH, IRobot.WEST };
-        while (arrivedDirectionStack.peek() != headings[i])
+        while (arrived != headings[i])
             i++;
         return headingStr[i];
     }
-    public void printRecordedData() {
-        System.out.println("Heading Recorded: " + getLastJunctionHeadingStr());
-    }
-    public Boolean checkEmpty() {
-        return arrivedDirectionStack.isEmpty();
-    }
-
 }
 
 class Remark {
