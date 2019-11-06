@@ -1,7 +1,7 @@
 import java.util.ArrayList;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 // arraylist version
-public class Ex3_v2 {
+public class Ex3 {
     private static int cnt = 0;
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private Remark remarkMap;
@@ -176,7 +176,7 @@ public class Ex3_v2 {
         if (numOfNoMarkExits(robot) == numOfPhyExits(robot) - 1)
             robotData.addJunctionRecord(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
         else if (numOfSingleMarkExits(robot) == numOfExits(robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
-            return IRobot.BEHIND; // numOfSingleMarkExits(robot) == numOfExits(robot) && robot.look(IRobot.BEHIND) != IRobot.WALL && 
+            return IRobot.BEHIND; // numOfSingleMarkExits(robot) == numOfExits(robot) && robot.look(IRobot.BEHIND) != IRobot.WALL &&
         // last it will come to this junction
         else if (numOfNoMarkExits(robot) == 0 && robotData.searchJunctionRecord(robot.getLocation().x, robot.getLocation().y) != -1) {
             robot.setHeading(reverseDirection(robotData.getLastJunctionArrivedHeading(robot.getLocation().x, robot.getLocation().y)));

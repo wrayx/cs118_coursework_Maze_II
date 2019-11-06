@@ -1,9 +1,5 @@
 import uk.ac.warwick.dcs.maze.logic.IRobot;
-/*
-initialization and reset
-Can't see whether the backtracking is working or not
-Worst case analysis: explore every places on the map
-*/
+
 public class Ex1 {
     private int pollRun = 0; // Incremented after each pass
     private RobotData robotData; // Data store for junctions

@@ -1,26 +1,28 @@
 import java.util.Stack;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
-public class Ex2 {
-    private static int pollRun = 0;
+public class GrandFinale {
+    private static int cnt = 0;
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private RobotData robotData;
     public void controlRobot(IRobot robot) {
         int direction = 0;
-        if (pollRun == 0){
+        if (cnt == 0){
             robotData = new RobotData();
         }
-        robot.face(exploreControl(robot));
-        pollRun++;
-    }
-
-    private int exploreControl(IRobot robot) {
-        if (numOfExits(robot) == 1)
-            return deadEnd(robot);
-        else if (numOfExits(robot) == 2)
-            return corridor(robot);
+        int numOfExits = numOfExits(robot);
+        if (numOfExits == 1)
+        direction = deadEnd(robot);
+        else if (numOfExits == 2)
+        direction = corridor(robot);
         else
-            return junction(robot);
+        direction = junction(robot);
+        cnt++;
+
+        robot.face(direction);
+
+        robotData.printArrivedHeading();
+        robotData.printHeadingUnexplored();
     }
 
     public void reset() {
@@ -78,21 +80,21 @@ public class Ex2 {
 
     private int junction(IRobot robot) {
         int[] exits = exitsCanGo(robot);
-        if (passageExits(robot) == numOfExits(robot) - 1) // first time encounter this junction
+        int j = 0;
+        if (passageExits(robot) == numOfExits(robot) - 1){
             robotData.addArrivedHeading(robot.getHeading());
-        if (passageExits(robot) != 0) { // pick random passage to go
-            int[] psExits = new int[passageExits(robot)];
-            int j = 0;
             for (int exit : exits) {
-                if (robot.look(exit) == IRobot.PASSAGE)
-                    psExits[j++] = exit;
+                // add to stack of the heading waiting to explore
+                if (exit != IRobot.BEHIND)
+                    robotData.addUnexploredHeading(exit);
             }
-            return chooseRandomHeading(psExits);
         }
-        else {
+        robot.setHeading(robotData.peekArrivedHeading());
+        if (passageExits(robot) == 0) {
             robot.setHeading(reverseAbsDirection(robotData.popArrivedHeading()));
             return IRobot.AHEAD;
         }
+        return robotData.popUnexploredHeading();
     }
 
     public int reverseAbsDirection(int absDirection) {
@@ -124,13 +126,16 @@ public class Ex2 {
 }
 
 class RobotData {
+    private Stack<Integer> headingUnexplored;
     private Stack<Integer> arrivedHeading;
 
     public RobotData() {
+        headingUnexplored = new Stack<Integer>();
         arrivedHeading = new Stack<Integer>();
     }
 
     public void resetRobotData() {
+        headingUnexplored.clear();
         arrivedHeading.clear();
     }
 
@@ -144,5 +149,27 @@ class RobotData {
 
     public int addArrivedHeading(int heading) {
         return arrivedHeading.push(heading);
+    }
+
+    public int popUnexploredHeading() {
+        return headingUnexplored.pop();
+    }
+
+    public int peekUnexploredHeading() {
+        return headingUnexplored.peek();
+    }
+
+    public int addUnexploredHeading(int unexploredHeading) {
+        return headingUnexplored.push(unexploredHeading);
+    }
+
+    public void printHeadingUnexplored() {
+        System.out.println("-HeadingUnexplored-");
+        headingUnexplored.forEach(System.out::println);
+    }
+
+    public void printArrivedHeading() {
+        System.out.println("-ArrivedHeading-");
+        arrivedHeading.forEach(System.out::println);
     }
 }

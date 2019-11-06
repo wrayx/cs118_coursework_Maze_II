@@ -1,3 +1,4 @@
 {
-    "todo-tree.tree.showTagsFromOpenFilesOnly": true
+    "todo-tree.tree.showTagsFromOpenFilesOnly": true,
+    "java.format.settings.url": "eclipse-formatter.xml"
 }
