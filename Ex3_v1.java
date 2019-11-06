@@ -1,7 +1,7 @@
-import java.util.ArrayList;
+import java.util.Stack;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
-// arraylist version
-public class Ex3_v2 {
+// stack version
+public class Ex3_v1 {
     private static int cnt = 0;
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private Remark remarkMap;
@@ -15,12 +15,12 @@ public class Ex3_v2 {
             robotData = new RobotData();
         }
 
-        robot.face(exploreControl(robot));
+        if (isRoute(robot))
+            remarkMap.markCurrentBlock(robot);
 
-        // testing
+        robot.face(exploreControl(robot));
         remarkMap.printMarks(robot);
         remarkMap.printArray();
-
         cnt++;
     }
 
@@ -34,6 +34,7 @@ public class Ex3_v2 {
     }
 
     private int hierarchySelectExit(IRobot robot) {
+        int numOfExits = numOfExits(robot);
         int[] nmExits = noMarkExits(robot);
         for (int a : nmExits){
             System.out.print(a);
@@ -143,26 +144,23 @@ public class Ex3_v2 {
     private int[] singleMarkExits(IRobot robot) {
         int[] smExits = new int[numOfSingleMarkExits(robot)];
         int i = 0;
-        for (int direction : directions){
-            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) == 1)
-                smExits[i++] = direction;
+        for (int exit : exits(robot)){
+            if (remarkMap.lookRemark(robot, exit) == 1)
+                smExits[i++] = exit;
         }
         return smExits;
     }
 
     private int deadEnd(IRobot robot) {
-        remarkMap.markCurrentBlock(robot);
-        remarkMap.markCurrentBlock(robot);
         if (robot.look(IRobot.BEHIND) != IRobot.BEENBEFORE) {
-            int[] exits = exits(robot);
-            return exits[0];
+            return exits(robot)[0];
         }
+        remarkMap.markCurrentBlock(robot);
+        remarkMap.markCurrentBlock(robot);
         return IRobot.BEHIND;
     }
 
     private int corridor(IRobot robot) {
-        if (isRoute(robot))
-            remarkMap.markCurrentBlock(robot);
         int[] exits = exits(robot);
         for (int exit : exits) {
             if (exit != IRobot.BEHIND)
@@ -172,22 +170,23 @@ public class Ex3_v2 {
     }
 
     private int junction(IRobot robot) {
+        int[] exits = exits(robot);
+        int j = 0;
         // first time been to this junction
-        if (numOfNoMarkExits(robot) == numOfPhyExits(robot) - 1)
+        if (numOfNoMarkExits(robot) == numOfPhyExits(robot) - 1){
             robotData.addJunctionRecord(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
-        else if (numOfSingleMarkExits(robot) == numOfExits(robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
-            return IRobot.BEHIND; // numOfSingleMarkExits(robot) == numOfExits(robot) && robot.look(IRobot.BEHIND) != IRobot.WALL && 
-        // last it will come to this junction
-        else if (numOfNoMarkExits(robot) == 0 && robotData.searchJunctionRecord(robot.getLocation().x, robot.getLocation().y) != -1) {
-            robot.setHeading(reverseDirection(robotData.getLastJunctionArrivedHeading(robot.getLocation().x, robot.getLocation().y)));
-            robotData.rmJunctionRecord(robot.getLocation().x, robot.getLocation().y);
-            // remarkMap.markCurrentBlock(robot);
-            // remarkMap.markCurrentBlock(robot);
-            if (remarkMap.lookRemark(robot, IRobot.AHEAD) < 2)
-                return IRobot.AHEAD;
+            return chooseRandomHeading(noMarkExits(robot));
         }
-
-        return hierarchySelectExit(robot);
+        if (numOfNoMarkExits(robot) == 0 && robotData.checkLastJunctionRecord(robot.getLocation().x, robot.getLocation().y)) {
+            robot.setHeading(reverseDirection(robotData.getLastJunctionArrivedHeading()));
+            robotData.popJunctionRecord();
+            remarkMap.markCurrentBlock(robot);
+            remarkMap.markCurrentBlock(robot);
+            return IRobot.AHEAD;
+        }
+        else {
+            return hierarchySelectExit(robot);
+        }
     }
 
     public int reverseDirection(int direction) {
@@ -208,6 +207,8 @@ public class Ex3_v2 {
             return directionsChooseFrom[0];
         // Generate number from 0-length (exclusive the length)
         Double temp = Math.random()*(directionsChooseFrom.length);
+        /* intValue() truncat the digits after decimal
+            Value of randno can only be 0, 1, 2 ... length-1 */
         int randno = temp.intValue();
         return directionsChooseFrom[randno];
     }
@@ -238,49 +239,39 @@ class JunctionRecorder {
 
 
 class RobotData {
-    private ArrayList<JunctionRecorder> robotdata;
+    private Stack<JunctionRecorder> robotdata;
 
     public RobotData() {
-        robotdata = new ArrayList<JunctionRecorder>();
+        robotdata = new Stack<JunctionRecorder>();
     }
 
     public void resetRobotData() {
-        robotdata.clear();
+        robotdata.clear();;
     }
 
+    public JunctionRecorder popJunctionRecord() {
+        return robotdata.pop();
+    }
+
+    public Boolean checkLastJunctionRecord(int juncX, int juncY) {
+        if (juncX == robotdata.peek().getJuncX() && juncY == robotdata.peek().getJuncY())
+            return true;
+        else
+            return false;
+    }
     /**
-     * searchJunctionRecord
+     * get heading of first arrived heading of robot at the last junction
      * @param juncX
      * @param juncY
-     * @return index of seached junction, if its not in array return -1
+     * @return
      */
-    public int searchJunctionRecord(int juncX, int juncY) {
-        for (int i = 0; i < robotdata.size(); i++) {
-            if (robotdata.get(i).getJuncX() == juncX && robotdata.get(i).getJuncY() == juncY)
-                return i;
-        }
-        return -1;
-    }
-
-    public JunctionRecorder rmJunctionRecord(int index) {
-        return robotdata.remove(index);
-    }
-
-    public JunctionRecorder rmJunctionRecord(int juncX, int juncY) {
-        return robotdata.remove(searchJunctionRecord(juncX, juncY));
-    }
-
-    public int getLastJunctionArrivedHeading(int index) {
-        return robotdata.get(index).getArrived();
-    }
-
-    public int getLastJunctionArrivedHeading(int juncX, int juncY) {
-        return robotdata.get(searchJunctionRecord(juncX, juncY)).getArrived();
+    public int getLastJunctionArrivedHeading() {
+            return robotdata.peek().getArrived();
     }
 
     public void addJunctionRecord(int juncX, int juncY, int arrived) {
         JunctionRecorder temp = new JunctionRecorder(juncX, juncY, arrived);
-        robotdata.add(temp);
+        robotdata.push(temp);
     }
 }
 
@@ -302,7 +293,13 @@ class Remark {
     }
 
     public int relativeToAbs(IRobot robot, int relativeHeading) {
-        return ( (robot.getHeading() - IRobot.NORTH) + (relativeHeading - IRobot.AHEAD) ) % 4 + IRobot.NORTH;
+        // change the list to clockwise
+        int[] headings = { IRobot.AHEAD, IRobot.LEFT, IRobot.BEHIND, IRobot.RIGHT };
+        int i = 0;
+        while (relativeHeading != headings[i]) {
+            i++;
+        }
+        return ((robot.getHeading() - IRobot.NORTH + i) % 4) + IRobot.NORTH;
     }
     /**
      * @param heading

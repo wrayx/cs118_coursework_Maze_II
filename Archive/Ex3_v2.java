@@ -1,33 +1,47 @@
 import uk.ac.warwick.dcs.maze.logic.IRobot;
-/*
+import java.util.Stack;
+
+/**
+ * @version with array that contains location of junctions
 initialization and reset
 Can't see whether the backtracking is working or not
 Worst case analysis: explore every places on the map
-*/
-public class Ex1 {
+static or not for exploremode?
+ */
+public class Ex3_v2 {
     private int pollRun = 0; // Incremented after each pass
     private RobotData robotData; // Data store for junctions
     private boolean explorerMode; // true for explore, false for backtrack
+    private Remark remarkMap;
     private int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
+    private int mapLength = 200;
+    private int mapWidth = 200;
     public void controlRobot(IRobot robot) {
         int direction;
         // On the first move of the first run of a new maze
         if ((robot.getRuns() == 0) && (pollRun == 0)){
             robotData = new RobotData(); //reset the data store
+            remarkMap = new Remark(mapLength, mapWidth);
             explorerMode = true; // set to Explore-mode at the very beginning
         }
-        if (explorerMode)
-            direction = exploreControl(robot);
-        else
-            direction = backtrackControl(robot, robotData);
+        // do {
+            if (explorerMode)
+                direction = exploreControl(robot);
+            else
+                direction = backtrackControl(robot);
+        // } while (robot.look(direction) == IRobot.WALL);
         pollRun++;
         // if the current location is an unencountered junction then record the data and print out infos
         if (nonwallExits(robot) >= 3 && beenbeforeExits(robot) <= 1){
             robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
+            System.out.println("("+robot.getLocation().x+", "+robot.getLocation().y+") added: ");
             robotData.printJunction();
         }
+        if (isRoute(robot))
+            remarkMap.markCurrentBlock(robot);
+
+        remarkMap.printMarks(robot);
         robot.face(direction); // face the robot to chosen direction
-        // System.out.println(chooseRandomHeading(directions));
     }
 
     /**
@@ -38,11 +52,28 @@ public class Ex1 {
         int numOfExits = 0;
         // Go through each of the direction to check whether there is a wall or not
         for (int direction : directions) {
-            if (robot.look(direction) != IRobot.WALL)
+            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) < 3)
                 numOfExits++;
         }
         return numOfExits;
     } // end nonwallExits()
+
+    private Boolean isRoute(IRobot robot) {
+        // check for physical number of exit
+        int numOfExits = 0;
+        // Go through each of the direction to check whether there is a wall or not
+        for (int direction : directions) {
+            if (robot.look(direction) != IRobot.WALL)
+                numOfExits++;
+        }
+        if (numOfExits < 3){
+            for (int i = 0; i < directions.length; i++) {
+                if (robot.look(directions[i]) != IRobot.WALL && robot.look(reverseRelativeDirection(directions[i])) != IRobot.WALL)
+                    return true;
+            }
+        }// end if
+        return false;
+    }
 
     /**
      * @param robot that you are trying to guide
@@ -52,7 +83,7 @@ public class Ex1 {
         int numOfPsExits = 0;
         // Go through each of the direction to check whether there is a wall or not
         for (int direction : directions) {
-            if (robot.look(direction) == IRobot.PASSAGE)
+            if (robot.look(direction) == IRobot.PASSAGE && remarkMap.lookRemark(robot, direction) < 3)
                 numOfPsExits++;
         }
         return numOfPsExits;
@@ -66,7 +97,7 @@ public class Ex1 {
         int numOfBeenBefExits = 0;
         // Go through each of the direction to check whether there is a wall or not
         for (int direction : directions) {
-            if (robot.look(direction) == IRobot.BEENBEFORE)
+            if (robot.look(direction) == IRobot.BEENBEFORE && remarkMap.lookRemark(robot, direction) < 3)
                 numOfBeenBefExits++;
         }
         return numOfBeenBefExits;
@@ -98,8 +129,6 @@ public class Ex1 {
      */
     private int corridor(IRobot robot) {
         int[] exits = exitsCanGoExBehind(robot);
-        if (exits[0] == IRobot.BEHIND)
-            return exits[1];
         return exits[0];
     }
     /**
@@ -156,13 +185,13 @@ public class Ex1 {
      */
     private int[] exitsCanGoExBehind(IRobot robot) {
         int numOfExitsExBehind;
-        if (robot.look(IRobot.BEHIND) == IRobot.WALL)
+        if (robot.look(IRobot.BEHIND) == IRobot.WALL || remarkMap.lookRemark(robot, IRobot.BEHIND) >= 3)
             numOfExitsExBehind = nonwallExits(robot);
         else
             numOfExitsExBehind = nonwallExits(robot) - 1;
         int[] exits = new int[numOfExitsExBehind];
         for (int i = 0, j = 0; i < directions.length - 1; i++) {
-            if (robot.look(directions[i]) != IRobot.WALL)
+            if (robot.look(directions[i]) != IRobot.WALL && remarkMap.lookRemark(robot, directions[i]) < 3)
                 exits[j++] = directions[i];
         }
         return exits;
@@ -173,6 +202,7 @@ public class Ex1 {
      */
     public void reset() {
         robotData.resetJunctionCounter();
+        remarkMap.resetRemarkMap(mapLength, mapLength);
     }
 
     /**
@@ -200,30 +230,29 @@ public class Ex1 {
      * when encounter no passage exit junctions:
      * exit the junction the opposite way to which it FIRST entered the junction
      */
-    public int backtrackControl(IRobot robot, RobotData robotData) {
+    public int backtrackControl(IRobot robot) {
         // System.out.println("Backtracking Mode Started");
         int numOfExits = nonwallExits(robot);
         if (numOfExits == 1)
             return deadEnd(robot);
         else if (numOfExits == 2)
             return corridor(robot);
-        else {
-            if (passageExits(robot) != 0){
-                explorerMode = true;
-                return exploreControl(robot);  // switch back into explorer mode
+        else { // numofexits > 2 junction or crossroads
+            if (passageExits(robot) != 0){ // there's passage exits
+                explorerMode = true; // switch back into explorer mode
+                return exploreControl(robot);
             }
-            else {
-                int preDirection = robotData.searchJunction(robot.getLocation().x, robot.getLocation().y);
-                if (preDirection != -1){
-                    // exit the junction the opposite way to which it FIRST entered the junction
-                    robot.setHeading(reverseAbsDirection(preDirection));
+            else { // no passage exit
+                if (robotData.searchJunction(robot.getLocation().x, robot.getLocation().y) != -1){
+                    robot.setHeading(reverseAbsDirection(robotData.searchJunction(robot.getLocation().x, robot.getLocation().y)));
                     return IRobot.AHEAD;
-                } else { // the first time robot encounter this junction
-                    explorerMode = true;
-                    return junction(robot);
-                } // end if (preDirection != -1)
-            } // end else
-        }// end else for exit >= 3
+                } else {
+                    explorerMode = true; // switch back into explorer mode
+                    return exploreControl(robot);
+                }
+
+            }
+        }// end else for exit > 2
     } // end backtrackControl()
 
     /**
@@ -236,7 +265,15 @@ public class Ex1 {
         else
             return absDirection - 2;
     }
+
+    public int reverseRelativeDirection(int relativeDirection) {
+        if ((relativeDirection - IRobot.AHEAD) < 2)
+            return relativeDirection + 2;
+        else
+            return relativeDirection - 2;
+    }
 }
+
 
 /**
  * Class contains needed variables and methods to record unencountered junction
@@ -245,6 +282,7 @@ public class Ex1 {
 class RobotData {
     private static int maxJunctions = 10000; // Max number likely to occur
     private static int junctionCounter; // No. of junctions stored
+    // i-th freshly unencountered junction will be stored in the i-th elements of the arrays
     private JunctionRecorder[] junctionsInfo;
 
     /**
@@ -259,6 +297,7 @@ class RobotData {
     /** Reset Value of JunctionCounter and data stored in array */
     public void resetJunctionCounter() {
         junctionCounter = 0;
+        junctionsInfo = new JunctionRecorder[maxJunctions];
     }
 
     /**
@@ -349,5 +388,73 @@ class JunctionRecorder {
         while (arrived != headings[i])
             i++;
         return headingStr[i];
+    }
+}
+
+class Remark {
+    private int[][] remarkMap;
+
+    public Remark(int length, int width) {
+        remarkMap = new int[length][width];
+        for (int i = 0; i < length; i++) {
+            for (int j = 0; j < width; j++) {
+                remarkMap[i][j] = 0;
+            }
+        }
+    }
+
+    public void resetRemarkMap(int mapLength, int mapWidth){
+        remarkMap = new int[mapLength][mapWidth];
+        for (int i = 0; i < mapLength; i++) {
+            for (int j = 0; j < mapWidth; j++) {
+                remarkMap[i][j] = 0;
+            }
+        }
+    }
+
+    public void mark(IRobot robot, int relativeHeading) {
+        int absHeading = relativeToAbs(robot, relativeHeading);
+        System.out.println("Junction marked");
+        if (absHeading == IRobot.NORTH)
+            remarkMap[robot.getLocation().x][robot.getLocation().y - 1]++;
+        else if (absHeading == IRobot.EAST)
+            remarkMap[robot.getLocation().x + 1][robot.getLocation().y]++;
+        else if (absHeading == IRobot.SOUTH)
+            remarkMap[robot.getLocation().x][robot.getLocation().y + 1]++;
+        else
+            remarkMap[robot.getLocation().x - 1][robot.getLocation().y]++;
+    }
+
+    public int relativeToAbs(IRobot robot, int relativeHeading) {
+        int[] headings = { IRobot.AHEAD, IRobot.LEFT, IRobot.BEHIND, IRobot.RIGHT };
+        int i = 0;
+        while (relativeHeading != headings[i]) {
+            i++;
+        }
+        return ((robot.getHeading() - IRobot.NORTH + i) % 4) + IRobot.NORTH;
+    }
+    /**
+     * @param heading
+     * @return 0 for never been here before, 1 for been here once, 2 for been here twice
+     */
+    public int lookRemark(IRobot robot, int relativeHeading) {
+        int absHeading = relativeToAbs(robot, relativeHeading);
+        if (absHeading == IRobot.NORTH)
+            return remarkMap[robot.getLocation().x][robot.getLocation().y - 1];
+        else if (absHeading == IRobot.EAST)
+            return remarkMap[robot.getLocation().x + 1][robot.getLocation().y];
+        else if (absHeading == IRobot.SOUTH)
+            return remarkMap[robot.getLocation().x][robot.getLocation().y + 1];
+        else
+            return remarkMap[robot.getLocation().x - 1][robot.getLocation().y];
+    }
+
+    public void markCurrentBlock(IRobot robot) {
+        System.out.println("Route marked");
+        remarkMap[robot.getLocation().x][robot.getLocation().y]++;
+    }
+
+    public void printMarks(IRobot robot) {
+        System.out.println("("+robot.getLocation().x+", "+robot.getLocation().y+") - " + remarkMap[robot.getLocation().x][robot.getLocation().y]);
     }
 }
