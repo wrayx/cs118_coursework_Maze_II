@@ -2,7 +2,7 @@ import java.util.ArrayList;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 // arraylist version
 public class Ex3 {
-    private static int pollRun = 0;
+    private int pollRun = 0;
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private Remark remarkMap;
     private int ylength = 32;
@@ -14,7 +14,7 @@ public class Ex3 {
         }
         robot.face(exploreControl(robot));
         // testing
-        remarkMap.printMarks(robot);
+        // remarkMap.printMarks(robot);
         // remarkMap.printArray();
         pollRun++;
     }
@@ -218,7 +218,6 @@ class Remark {
     }
 
     public void markCurrentBlock(IRobot robot) {
-        System.out.println("Route marked");
         remarkMap[robot.getLocation().y][robot.getLocation().x] = remarkMap[robot.getLocation().y][robot.getLocation().x] + 1;
     }
 

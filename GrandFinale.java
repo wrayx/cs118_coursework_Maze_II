@@ -2,27 +2,26 @@ import java.util.Stack;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
 public class GrandFinale {
-    private static int cnt = 0;
+    private int pollRun = 0;
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private RobotData robotData;
     public void controlRobot(IRobot robot) {
-        int direction = 0;
-        if (cnt == 0){
+        if (pollRun == 0 && robot.getRuns() == 0){
             robotData = new RobotData();
         }
-        int numOfExits = numOfExits(robot);
-        if (numOfExits == 1)
-        direction = deadEnd(robot);
-        else if (numOfExits == 2)
-        direction = corridor(robot);
+        if (robot.getRuns() != 0) {}
+        robot.face(exploreControl(robot));
+        pollRun++;
+        robotData.printRobotData();
+    }
+
+    private int exploreControl(IRobot robot) {
+        if (numOfExits(robot) == 1)
+            return deadEnd(robot);
+        else if (numOfExits(robot) == 2)
+            return corridor(robot);
         else
-        direction = junction(robot);
-        cnt++;
-
-        robot.face(direction);
-
-        robotData.printArrivedHeading();
-        robotData.printHeadingUnexplored();
+            return junction(robot);
     }
 
     public void reset() {
@@ -80,21 +79,21 @@ public class GrandFinale {
 
     private int junction(IRobot robot) {
         int[] exits = exitsCanGo(robot);
-        int j = 0;
-        if (passageExits(robot) == numOfExits(robot) - 1){
-            robotData.addArrivedHeading(robot.getHeading());
+        if (passageExits(robot) == numOfExits(robot) - 1) // first time encounter this junction
+            robotData.addRobotData(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
+        if (passageExits(robot) != 0) { // pick random passage to go
+            int[] psExits = new int[passageExits(robot)];
+            int j = 0;
             for (int exit : exits) {
-                // add to stack of the heading waiting to explore
-                if (exit != IRobot.BEHIND)
-                    robotData.addUnexploredHeading(exit);
+                if (robot.look(exit) == IRobot.PASSAGE)
+                    psExits[j++] = exit;
             }
+            return chooseRandomHeading(psExits);
         }
-        robot.setHeading(robotData.peekArrivedHeading());
-        if (passageExits(robot) == 0) {
-            robot.setHeading(reverseAbsDirection(robotData.popArrivedHeading()));
+        else {
+            robot.setHeading(reverseAbsDirection(robotData.popRobotData().getArrivedHeading()));
             return IRobot.AHEAD;
         }
-        return robotData.popUnexploredHeading();
     }
 
     public int reverseAbsDirection(int absDirection) {
@@ -125,51 +124,83 @@ public class GrandFinale {
     }
 }
 
+class JunctionRecord {
+    private int arrivedHeading;
+    private int juncX;
+    private int juncY;
+
+    public JunctionRecord (int juncX, int juncY, int arrivedHeading) {
+        this.juncX = juncX;
+        this.juncY = juncY;
+        this.arrivedHeading = arrivedHeading;
+    }
+
+    public int getArrivedHeading() {
+        return arrivedHeading;
+    }
+
+    public int getJuncX() {
+        return juncX;
+    }
+
+    public int getJuncY() {
+        return juncY;
+    }
+
+    /**
+     * Print out the junction details in readable format
+     * e.g. Junction 1 (x=3,y=3) heading SOUTH
+     */
+    public void printJunction() {
+        System.out.println("(x=" + getJuncX() + ",y=" + getJuncY() + ")" + " heading " + getArrivedStr());
+    }
+
+    /**
+     * get the absolute direction when then robot first arrived in this junction
+     * @return arrived absolute direction in string format e. g 'NORTH'
+     */
+    public String getArrivedStr(){
+        int i = 0;
+        String[] headingStr = { "NORTH", "EAST", "SOUTH", "WEST" };
+        int[] headings = { IRobot.NORTH, IRobot.EAST, IRobot.SOUTH, IRobot.WEST };
+        while (arrivedHeading != headings[i])
+            i++;
+        return headingStr[i];
+    }
+}
+
 class RobotData {
-    private Stack<Integer> headingUnexplored;
-    private Stack<Integer> arrivedHeading;
+    private Stack<JunctionRecord> robotData;
+    private static JunctionRecord[] preRobotDataArr;
 
     public RobotData() {
-        headingUnexplored = new Stack<Integer>();
-        arrivedHeading = new Stack<Integer>();
+        robotData = new Stack<JunctionRecord>();
     }
 
     public void resetRobotData() {
-        headingUnexplored.clear();
-        arrivedHeading.clear();
+        robotData.clear();
     }
 
-    public int popArrivedHeading() {
-        return arrivedHeading.pop();
+    public JunctionRecord popRobotData() {
+        return robotData.pop();
     }
 
-    public int peekArrivedHeading() {
-        return arrivedHeading.peek();
+    public JunctionRecord peekRobotData() {
+        return robotData.peek();
     }
 
-    public int addArrivedHeading(int heading) {
-        return arrivedHeading.push(heading);
+    public void addRobotData(int juncX, int juncY, int arrivedHeading) {
+        JunctionRecord junc = new JunctionRecord(juncX, juncY, arrivedHeading);
+        robotData.push(junc);
     }
 
-    public int popUnexploredHeading() {
-        return headingUnexplored.pop();
+    public void robotDataToArray() {
+        preRobotDataArr = new JunctionRecord[robotData.size()];
+        preRobotDataArr = robotData.toArray(preRobotDataArr);
     }
 
-    public int peekUnexploredHeading() {
-        return headingUnexplored.peek();
-    }
-
-    public int addUnexploredHeading(int unexploredHeading) {
-        return headingUnexplored.push(unexploredHeading);
-    }
-
-    public void printHeadingUnexplored() {
-        System.out.println("-HeadingUnexplored-");
-        headingUnexplored.forEach(System.out::println);
-    }
-
-    public void printArrivedHeading() {
-        System.out.println("-ArrivedHeading-");
-        arrivedHeading.forEach(System.out::println);
+    public void printRobotData() {
+        System.out.println("-RobotData-");
+        robotData.forEach(data -> data.printJunction());
     }
 }

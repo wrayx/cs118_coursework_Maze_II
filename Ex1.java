@@ -17,11 +17,6 @@ public class Ex1 {
         else
             direction = backtrackControl(robot, robotData);
         pollRun++;
-        // if the current location is an unencountered junction then record the data and print out infos
-        if (nonwallExits(robot) >= 3 && beenbeforeExits(robot) <= 1){
-            robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
-            robotData.printJunction();
-        }
         robot.face(direction); // face the robot to chosen direction
         // System.out.println(chooseRandomHeading(directions));
     }
@@ -80,9 +75,7 @@ public class Ex1 {
         int heading = IRobot.BEHIND;
         if (robot.look(heading) != IRobot.BEENBEFORE) {
             explorerMode = true; // if it's still the very first step the robot took
-            if (exitsCanGoExBehind(robot).length == 0)
-                heading = IRobot.BEHIND;
-            heading = exitsCanGoExBehind(robot)[0];
+            heading = exitsCanGo(robot)[0];
         }
         return heading;
     }
@@ -93,7 +86,7 @@ public class Ex1 {
      * otherwise just choose one that doesn't make the robot to go back on itself
      */
     private int corridor(IRobot robot) {
-        int[] exits = exitsCanGoExBehind(robot);
+        int[] exits = exitsCanGo(robot);
         if (exits[0] == IRobot.BEHIND)
             return exits[1];
         return exits[0];
@@ -106,18 +99,18 @@ public class Ex1 {
      * otherwise return random direction that doesn’t cause a collision.
      */
     private int junction(IRobot robot) {
-        int[] exits = exitsCanGoExBehind(robot);
-        if (passageExits(robot) == 0)
-            return chooseRandomHeading(exits);
-        else {
-            int[] psExits = new int[passageExits(robot)];
-            int j = 0;
-            for (int exit : exits) {
-                if (robot.look(exit) == IRobot.PASSAGE)
-                    psExits[j++] = exit;
-            }
-            return chooseRandomHeading(psExits);
+        int[] exits = exitsCanGo(robot);
+        int[] psExits = new int[passageExits(robot)];
+        int j = 0;
+        if (passageExits(robot) == nonwallExits(robot) - 1){
+            robotData.recordJunction(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
+            robotData.printJunction();
         }
+        for (int exit : exits) {
+            if (robot.look(exit) == IRobot.PASSAGE)
+                psExits[j++] = exit;
+        }
+        return chooseRandomHeading(psExits);
     }
     /**
      * numOfExits = 4
@@ -148,16 +141,11 @@ public class Ex1 {
 
     /**
      * @return array with all the exits that robot can go
-     * (except go behind) that will not cause it crash into the wall
+     * that will not cause it crash into the wall
      */
-    private int[] exitsCanGoExBehind(IRobot robot) {
-        int numOfExitsExBehind;
-        if (robot.look(IRobot.BEHIND) == IRobot.WALL)
-            numOfExitsExBehind = nonwallExits(robot);
-        else
-            numOfExitsExBehind = nonwallExits(robot) - 1;
-        int[] exits = new int[numOfExitsExBehind];
-        for (int i = 0, j = 0; i < directions.length - 1; i++) {
+    private int[] exitsCanGo(IRobot robot) {
+        int[] exits = new int[nonwallExits(robot)];
+        for (int i = 0, j = 0; i < directions.length; i++) {
             if (robot.look(directions[i]) != IRobot.WALL)
                 exits[j++] = directions[i];
         }
@@ -209,16 +197,10 @@ public class Ex1 {
                 return exploreControl(robot);  // switch back into explorer mode
             }
             else {
-                int preDirection = robotData.searchJunction(robot.getLocation().x, robot.getLocation().y);
-                if (preDirection != -1){
                     // exit the junction the opposite way to which it FIRST entered the junction
-                    robot.setHeading(reverseAbsDirection(preDirection));
+                    robot.setHeading(reverseAbsDirection(robotData.searchJunction(robot.getLocation().x, robot.getLocation().y)));
                     return IRobot.AHEAD;
-                } else { // the first time robot encounter this junction
-                    explorerMode = true;
-                    return junction(robot);
-                } // end if (preDirection != -1)
-            } // end else
+                } // end else
         }// end else for exit >= 3
     } // end backtrackControl()
 

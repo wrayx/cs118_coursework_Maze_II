@@ -2,12 +2,11 @@ import java.util.Stack;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
 public class Ex2 {
-    private static int pollRun = 0;
+    private int pollRun = 0;
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private RobotData robotData;
     public void controlRobot(IRobot robot) {
-        int direction = 0;
-        if (pollRun == 0){
+        if (pollRun == 0 && robot.getRuns() == 0){
             robotData = new RobotData();
         }
         robot.face(exploreControl(robot));
@@ -69,10 +68,8 @@ public class Ex2 {
 
     private int corridor(IRobot robot) {
         int[] exits = exitsCanGo(robot);
-        for (int exit : exits) {
-            if (exit != IRobot.BEENBEFORE)
-                return exit;
-        }
+        if (exits[0] == IRobot.BEHIND)
+            return exits[1];
         return exits[0];
     }
 
