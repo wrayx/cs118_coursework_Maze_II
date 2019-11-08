@@ -4,7 +4,7 @@ import java.util.LinkedHashSet;
 import java.util.Objects;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
-public class GrandFinale {
+public class GrandFinale_imp {
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private static boolean startMode; // turn off when it get out from the first deadend
     private int pollRun = 0;

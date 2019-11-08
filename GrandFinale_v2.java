@@ -4,9 +4,10 @@ import java.util.LinkedHashSet;
 import java.util.Objects;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 
-public class GrandFinale {
+public class GrandFinale_imp {
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private static boolean startMode; // turn off when it get out from the first deadend
+    private ArrayList<int[]> markedLocation;
     private int pollRun = 0;
     private Remark remarkMap;
     private int ylength = 32;
@@ -16,6 +17,8 @@ public class GrandFinale {
         if (pollRun == 0 && robot.getRuns() == 0){
             robotData = new RobotData();
             remarkMap = new Remark(ylength, xlength);
+            markedLocation = new ArrayList<int[]>();
+
         }
         if (pollRun == 0) {
             startMode = true;
@@ -31,9 +34,9 @@ public class GrandFinale {
     }
 
     private int exploreControl(IRobot robot) {
-        if (numExits(3, robot) == 1)
+        if (numOfPhyExits(robot) == 1)
             return deadEnd(robot);
-        else if (numExits(3, robot) == 2)
+        else if (numOfPhyExits(robot) == 2)
             return corridor(robot);
         else {
             if (robot.getRuns() == 0)
@@ -51,7 +54,7 @@ public class GrandFinale {
     }
 
     private Boolean isRoute(IRobot robot) { // mark physical corridor (not corner)
-        if (numExits(3, robot) == 2){
+        if (numOfPhyExits(robot) == 2){
             for (int i = 0; i < directions.length; i++) {
                 if (robot.look(directions[i]) != IRobot.WALL && robot.look(MazeUtil.reverseDirection(directions[i])) != IRobot.WALL)
                     return true;
@@ -60,66 +63,95 @@ public class GrandFinale {
         return false;
     }
 
-    /**
-     * @param type
-     * 0 - number of no mark exits
-     * 1 - number of single mark exits
-     * 2 - number of all exits
-     * 3 - number of physical exits
-     * @param robot
-     * @return number of different type of exits
-     */
-    private int numExits(int type, IRobot robot) {
-        int[] result = new int[4];
+    private int numOfPhyExits(IRobot robot) {
+        int numOfExits = 0;
         for (int direction : directions) {
-            if (robot.look(direction) == IRobot.PASSAGE)
-                result[0]++;
-            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) == 1)
-                result[1]++;
-            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) < 2)
-                result[2]++;
             if (robot.look(direction) != IRobot.WALL)
-                result[3]++;
+                numOfExits++;
         }
-        return result[type];
+        return numOfExits;
     }
 
-    private int[] exits(int type, IRobot robot) {
-        int[] exits = new int[numExits(type, robot)];
+    private int numOfExits(IRobot robot) {
+        int numOfExits = 0;
+        for (int direction : directions) {
+            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) < 2)
+                numOfExits++;
+        }
+        return numOfExits;
+    }
+
+    private int[] exits(IRobot robot) {
+        int[] exits = new int[numOfExits(robot)];
         int i = 0;
         for (int direction : directions) {
-            if (type == 1 && robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) == 1)
-                exits[i++] = direction;
-            else if (type == 0 && robot.look(direction) == IRobot.PASSAGE)
-                exits[i++] = direction;
-            else if (type == 2 && robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) < 2)
-                exits[i++] = direction;
-            else if (type == 3 && robot.look(direction) != IRobot.WALL)
+            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) < 2)
                 exits[i++] = direction;
         }
         return exits;
     }
 
+    private int numOfnoMarkExits(IRobot robot) {
+        int numOfPsExits = 0;
+        for (int direction : directions) {
+            if (robot.look(direction) == IRobot.PASSAGE)
+                numOfPsExits++;
+        }
+        return numOfPsExits;
+    }
+
+    private int[] noMarkExits(IRobot robot) {
+        int[] nmExits = new int[numOfnoMarkExits(robot)];
+        int i = 0;
+        for (int direction : directions){
+            if (robot.look(direction) == IRobot.PASSAGE)
+                nmExits[i++] = direction;
+        }
+        return nmExits;
+    }
+
+    private int numOfSingleMarkExits(IRobot robot) {
+        int num = 0;
+        for (int direction : directions) {
+            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) == 1)
+                num++;
+        }
+        return num;
+    }
+
+    private int[] singleMarkExits(IRobot robot) {
+        int[] smExits = new int[numOfSingleMarkExits(robot)];
+        int i = 0;
+        for (int direction : directions){
+            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) == 1)
+                smExits[i++] = direction;
+        }
+        return smExits;
+    }
+
     private int deadEnd(IRobot robot) {
-        remarkMap.markCurrentBlock(robot, 2);
+        remarkMap.markCurrentBlock(robot);
+        remarkMap.markCurrentBlock(robot);
         if (robot.look(IRobot.BEHIND) != IRobot.BEENBEFORE) {
-            int[] exits = exits(2, robot);
+            int[] exits = exits(robot);
             return exits[0];
         }
         return IRobot.BEHIND;
     }
 
     private int corridor(IRobot robot) {
-        if (isRoute(robot))
+        if (isRoute(robot)){
             remarkMap.markCurrentBlock(robot);
+            markedLocation.add(new location[]{robot.getLocation().x, robot.getLocation().y});
+        }
         // exception for at the beginning of the graph
-        if (numExits(2, robot) == 0) {
+        if (numOfExits(robot) == 0) {
             for (int direction : directions) {
                 if (direction != IRobot.BEHIND && robot.look(direction) != IRobot.WALL)
                     return direction;
             }
         }
-        int[] exits = exits(2, robot);
+        int[] exits = exits(robot);
         for (int exit : exits) {
             if (exit != IRobot.BEHIND)
                 return exit;
@@ -128,9 +160,9 @@ public class GrandFinale {
     }
 
     private int hierarchySelectExit(IRobot robot) {
-        int[] nmExits = exits(0, robot);
-        int[] smExits = exits(1, robot);
-        int[] exits = exits(2, robot);
+        int[] nmExits = noMarkExits(robot);
+        int[] smExits = singleMarkExits(robot);
+        int[] exits = exits(robot);
         if (nmExits.length != 0)
             return MazeUtil.chooseRandomHeading(nmExits);
         else if (smExits.length != 0)
@@ -141,13 +173,13 @@ public class GrandFinale {
 
     private int junction(IRobot robot) {
         startMode = false;
-        int[] exits = exits(2, robot);
-        if (numExits(0, robot) == numExits(3, robot) - 1) // first time encounter this junction
+        int[] exits = exits(robot);
+        if (numOfnoMarkExits(robot) == numOfPhyExits(robot) - 1) // first time encounter this junction
             robotData.addJunctionsInfo(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
         // turn around when all exits are single mark exits
-        if (numExits(1, robot) == numExits(2, robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
+        if (numOfSingleMarkExits(robot) == numOfExits(robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
             return IRobot.BEHIND;
-        else if (numExits(0, robot) != 0) { // pick random passage to go
+        else if (numOfnoMarkExits(robot) != 0) { // pick random passage to go
             int heading = 0;
             heading = hierarchySelectExit(robot);
             robotData.peekJunctionsInfo().setArrivedHeading(MazeUtil.relativeToAbs(robot, heading));
@@ -164,14 +196,14 @@ public class GrandFinale {
 
     private int learnedJunction(IRobot robot) {
         startMode = false;
-        int[] exits = exits(2, robot);
+        int[] exits = exits(robot);
         int index = robotData.searchJunctionArr(robot.getLocation().x, robot.getLocation().y);
-        if (numExits(0, robot) == numExits(3, robot) - 1) // first time encounter this junction
+        if (numOfnoMarkExits(robot) == numOfPhyExits(robot) - 1) // first time encounter this junction
             robotData.addJunctionsInfo(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
         // turn around when all exits are single mark exits
-        if (numExits(1, robot) == numExits(2, robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
+        if (numOfSingleMarkExits(robot) == numOfExits(robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
             return IRobot.BEHIND;
-        else if (numExits(0, robot) != 0 && index != -1 && !robotData.getJunctionArrRecordUsed(index)) {
+        else if (numOfnoMarkExits(robot) != 0 && index != -1 && !robotData.getJunctionArrRecordUsed(index)) {
             robot.setHeading(robotData.getJunctionArrRecordHeading(index));
             robotData.setJunctionArrRecordUsed(index);
             if (robot.look(IRobot.AHEAD) != IRobot.WALL)
@@ -181,7 +213,7 @@ public class GrandFinale {
                 return junction(robot);
             }
         }
-        else if (numExits(0, robot) != 0) { // pick random passage to go
+        else if (numOfnoMarkExits(robot) != 0) { // pick random passage to go
             int heading = 0;
             heading = hierarchySelectExit(robot);
             robotData.peekJunctionsInfo().setArrivedHeading(MazeUtil.relativeToAbs(robot, heading));
@@ -347,10 +379,10 @@ class RobotData {
         else {
             preJunctionsInfoArr.forEach(e -> e.setUsed(false));
             junctionsInfo.forEach(e -> preJunctionsInfoArr.add(e));
+            rmDuplicateJunctionArrRecord();
+            rmMistakenJunctionArrRecord();
         }
         popedJunctionsInfo.forEach(e -> preJunctionsInfoArr.add(e));
-        rmDuplicateJunctionArrRecord();
-        rmMistakenJunctionArrRecord();
     }
 
     public int searchJunctionArr(int junctionX, int junctionY) {
@@ -394,18 +426,17 @@ class RobotData {
 
     // remove previous incorrect directions
     public void rmMistakenJunctionArrRecord() {
-        ArrayList<JunctionRecord> temp = new ArrayList<JunctionRecord>();
         for (int i = 0; i < preJunctionsInfoArr.size(); i++) {
-            int j = 0;
-            while (j < i) {
+            for (int j = 0; j < preJunctionsInfoArr.size(); j++) {
                 if (preJunctionsInfoArr.get(i).getJuncX() == preJunctionsInfoArr.get(j).getJuncX()
                 && preJunctionsInfoArr.get(i).getJuncY() == preJunctionsInfoArr.get(j).getJuncY()){
-                    temp.add(preJunctionsInfoArr.get(j));
+                        if (i < j)
+                            rmJunctionArrRecord(i);
+                        else if (j < i)
+                            rmJunctionArrRecord(j);
                 }
-                j++;
             }
         }
-        temp.forEach(e -> preJunctionsInfoArr.remove(e));
     }
 }
 
