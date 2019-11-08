@@ -7,15 +7,19 @@ public class Ex3 {
     private Remark remarkMap;
     private int ylength = 32;
     private int xlength = 32;
+    private boolean startMode; // turn off when it get out from the first deadend
     public void controlRobot(IRobot robot) {
         int direction = 0;
         if (pollRun == 0) {
             remarkMap = new Remark(ylength, xlength);
+            startMode = true;
         }
         robot.face(exploreControl(robot));
         // testing
         // remarkMap.printMarks(robot);
         // remarkMap.printArray();
+        if (startMode)
+            remarkMap.markCurrentBlock(robot, 2);
         pollRun++;
     }
 
@@ -153,6 +157,7 @@ public class Ex3 {
     }
 
     private int junction(IRobot robot) {
+        startMode = false;
         if (numOfSingleMarkExits(robot) == numOfExits(robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
             return IRobot.BEHIND; // numOfSingleMarkExits(robot) == numOfExits(robot) && robot.look(IRobot.BEHIND) != IRobot.WALL &&
 
@@ -219,6 +224,10 @@ class Remark {
 
     public void markCurrentBlock(IRobot robot) {
         remarkMap[robot.getLocation().y][robot.getLocation().x] = remarkMap[robot.getLocation().y][robot.getLocation().x] + 1;
+    }
+
+    public void markCurrentBlock(IRobot robot, int num) {
+        remarkMap[robot.getLocation().y][robot.getLocation().x] = remarkMap[robot.getLocation().y][robot.getLocation().x] = num;
     }
 
     public void printMarks(IRobot robot) {
