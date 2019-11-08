@@ -238,21 +238,32 @@ class JunctionRecord {
     public int hashCode() {
         return Objects.hash(juncX, juncY, arrivedHeading);
     }
+
+    public void reverseArrivedHeading() {
+        if ((arrivedHeading - IRobot.NORTH) < 2)
+            arrivedHeading = arrivedHeading + 2;
+        else
+            arrivedHeading = arrivedHeading - 2;
+    }
 }
 
 class RobotData {
     private Stack<JunctionRecord> junctionsInfo;
+    private Stack<JunctionRecord> popedJunctionsInfo;
     private static ArrayList<JunctionRecord> preJunctionsInfoArr;
 
     public RobotData() {
         junctionsInfo = new Stack<JunctionRecord>();
+        popedJunctionsInfo = new Stack<JunctionRecord>();
     }
 
     public void resetJunctionsInfo() {
         junctionsInfo.clear();
+        popedJunctionsInfo.clear();
     }
 
     public JunctionRecord popJunctionsInfo() {
+        popedJunctionsInfo.push(junctionsInfo.peek());
         return junctionsInfo.pop();
     }
 
@@ -271,14 +282,18 @@ class RobotData {
     }
 
     public void junctionsInfoToArray() {
-        if (preJunctionsInfoArr == null)
+        if (preJunctionsInfoArr == null){
             preJunctionsInfoArr = new ArrayList<JunctionRecord>(junctionsInfo);
+        }
         else {
             preJunctionsInfoArr.forEach(e -> e.setUsed(false));
             junctionsInfo.forEach(e -> preJunctionsInfoArr.add(e));
             rmDuplicateJunctionArrRecord();
             // printJunctionArrRecord();
         }
+
+        popedJunctionsInfoReverseHeading();
+        popedJunctionsInfo.forEach(e -> preJunctionsInfoArr.add(e));
     }
 
     public int searchJunctionArr(int junctionX, int junctionY) {
@@ -318,5 +333,9 @@ class RobotData {
     public void printJunctionArrRecord() {
         System.out.println("-preJunctionsInfoArr-");
         preJunctionsInfoArr.forEach(e -> e.printJunction());
+    }
+
+    public void popedJunctionsInfoReverseHeading() {
+        popedJunctionsInfo.forEach(e -> e.reverseArrivedHeading());
     }
 }
