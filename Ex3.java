@@ -158,6 +158,7 @@ public class Ex3 {
 
     private int junction(IRobot robot) {
         startMode = false;
+        // turn around when all exits are single mark exits
         if (numOfSingleMarkExits(robot) == numOfExits(robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
             return IRobot.BEHIND; // numOfSingleMarkExits(robot) == numOfExits(robot) && robot.look(IRobot.BEHIND) != IRobot.WALL &&
 
