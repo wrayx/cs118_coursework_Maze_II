@@ -1,7 +1,7 @@
 import java.util.ArrayList;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 // arraylist version
-public class Ex3 {
+public class test {
     private int pollRun = 0;
     private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
     private Remark remarkMap;
@@ -127,8 +127,7 @@ public class Ex3 {
     }
 
     private int deadEnd(IRobot robot) {
-        remarkMap.markCurrentBlock(robot);
-        remarkMap.markCurrentBlock(robot);
+        remarkMap.markCurrentBlock(robot, 2);
         if (robot.look(IRobot.BEHIND) != IRobot.BEENBEFORE) {
             int[] exits = exits(robot);
             return exits[0];
@@ -257,7 +256,7 @@ class Remark {
         if (searchRemark(robot.getLocation().x, robot.getLocation().y) != -1)
             System.out.println("[++"+robot.getLocation().y+", "+robot.getLocation().x+"++] - " + remarkMap.get(searchRemark(robot.getLocation().x, robot.getLocation().y)).getTimes());
         else
-        System.out.println("Invalide for Marking");
+        System.out.println("Recording");
 
     }
 
@@ -311,3 +310,4 @@ class Block {
     }
 
 }
+

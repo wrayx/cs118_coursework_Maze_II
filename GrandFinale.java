@@ -15,7 +15,7 @@ public class GrandFinale {
     public void controlRobot(IRobot robot) {
         if (pollRun == 0 && robot.getRuns() == 0){
             robotData = new RobotData();
-            remarkMap = new Remark(ylength, xlength);
+            remarkMap = new Remark();
         }
         if (pollRun == 0) {
             startMode = true;
@@ -23,7 +23,7 @@ public class GrandFinale {
         robot.face(exploreControl(robot));
         // testing
         remarkMap.printMarks(robot);
-        remarkMap.printArray();
+        // remarkMap.printArray();
         if (startMode)
             remarkMap.markCurrentBlock(robot, 2);
         pollRun++;
@@ -44,7 +44,8 @@ public class GrandFinale {
     }
 
     public void reset() {
-        remarkMap.resetRemarkMap(ylength, xlength);
+        remarkMap.printRemarkMap();
+        remarkMap.resetRemarkMap();
         robotData.junctionsInfoToArray();
         robotData.resetJunctionsInfo();
         robotData.printJunctionArrRecord();
@@ -410,56 +411,126 @@ class RobotData {
 }
 
 class Remark {
-    private int[][] remarkMap;
+    private ArrayList<Block> remarkMap;
 
     /**
      * Initialize table
      * @param ylength
      * @param xlength
      */
-    public Remark(int ylength, int xlength) {
-        remarkMap = new int[ylength][ylength];
+    public Remark() {
+        remarkMap = new ArrayList<Block>();
     }
 
-    public void resetRemarkMap(int ylength, int xlength){
-        remarkMap = new int[ylength][xlength];
+    public void resetRemarkMap(){
+        remarkMap.clear();
     }
 
+    public int relativeToAbs(IRobot robot, int relativeHeading) {
+        return ( (robot.getHeading() - IRobot.NORTH) + (relativeHeading - IRobot.AHEAD) ) % 4 + IRobot.NORTH;
+    }
     /**
      * @param heading
      * @return 0 for never been here before, 1 for been here once, 2 for been here twice
      */
     public int lookRemark(IRobot robot, int relativeHeading) {
-        int absHeading = MazeUtil.relativeToAbs(robot, relativeHeading);
+        int absHeading = relativeToAbs(robot, relativeHeading);
+        int index;
         if (absHeading == IRobot.NORTH)
-            return remarkMap[robot.getLocation().y - 1][robot.getLocation().x];
+            index = searchRemark(robot.getLocation().x, robot.getLocation().y - 1);
         else if (absHeading == IRobot.EAST)
-            return remarkMap[robot.getLocation().y][robot.getLocation().x + 1];
+            index = searchRemark(robot.getLocation().x + 1, robot.getLocation().y);
         else if (absHeading == IRobot.SOUTH)
-            return remarkMap[robot.getLocation().y + 1][robot.getLocation().x];
+            index = searchRemark(robot.getLocation().x, robot.getLocation().y + 1);
         else
-            return remarkMap[robot.getLocation().y][robot.getLocation().x - 1];
+            index = searchRemark(robot.getLocation().x - 1, robot.getLocation().y);
+
+        if (index == -1) // that place that haven't been stored in the arraylist
+            return 0;
+        return remarkMap.get(index).getTimes();
+    }
+
+    public int searchRemark(int x, int y) {
+        for (int i = remarkMap.size() - 1; i >= 0; i--)
+            if (remarkMap.get(i).getX() == x && remarkMap.get(i).getY() == y)
+                return i;
+        // finished the loop and there still isn't any match
+        return -1;
     }
 
     public void markCurrentBlock(IRobot robot) {
-        remarkMap[robot.getLocation().y][robot.getLocation().x] = remarkMap[robot.getLocation().y][robot.getLocation().x] + 1;
+        int index = searchRemark(robot.getLocation().x, robot.getLocation().y);
+        if (index == -1){
+            Block b = new Block(robot.getLocation().x, robot.getLocation().y);
+            remarkMap.add(b);
+        }
+        index = searchRemark(robot.getLocation().x, robot.getLocation().y);
+        remarkMap.get(index).addTimes();
     }
 
     public void markCurrentBlock(IRobot robot, int num) {
-        remarkMap[robot.getLocation().y][robot.getLocation().x] = remarkMap[robot.getLocation().y][robot.getLocation().x] = num;
+        int index = searchRemark(robot.getLocation().x, robot.getLocation().y);
+        if (index == -1){
+            Block b = new Block(robot.getLocation().x, robot.getLocation().y);
+            remarkMap.add(b);
+        }
+        remarkMap.get(searchRemark(robot.getLocation().x, robot.getLocation().y)).setTimes(num);
     }
 
     public void printMarks(IRobot robot) {
-        System.out.println("["+robot.getLocation().y+", "+robot.getLocation().x+"] - " + remarkMap[robot.getLocation().y][robot.getLocation().x]);
+        if (searchRemark(robot.getLocation().x, robot.getLocation().y) != -1)
+            System.out.println("[++"+robot.getLocation().y+", "+robot.getLocation().x+"++] - " + remarkMap.get(searchRemark(robot.getLocation().x, robot.getLocation().y)).getTimes());
+        else
+        System.out.println("Invalide for Marking");
+
     }
 
-    public void printArray() {
-        for (int[] x : remarkMap){
-            for (int y : x) {
-                System.out.print(y + " ");
-            }
-        System.out.println();
-        }
+    public void printRemarkMap() {
+        System.out.println("-- Marked Places --");
+        remarkMap.forEach(e -> e.printBlock());
     }
 }
 
+class Block {
+    private int x;
+    private int y;
+    private int times;
+
+    public Block(int x, int y) {
+        this.x = x;
+        this.y = y;
+        this.times = 0;
+    }
+
+    public int getX() {
+        return this.x;
+    }
+
+    public void setX(int x) {
+        this.x = x;
+    }
+
+    public int getY() {
+        return this.y;
+    }
+
+    public void setY(int y) {
+        this.y = y;
+    }
+
+    public int getTimes() {
+        return this.times;
+    }
+
+    public void addTimes() {
+        times++;
+    }
+
+    public void setTimes(int times) {
+        this.times = times;
+    }
+
+    public void printBlock() {
+        System.out.println("["+getX()+", "+getY()+"] -> " + getTimes());
+    }
+}
