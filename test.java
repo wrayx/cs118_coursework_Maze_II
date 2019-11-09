@@ -1,4 +1,4 @@
-import java.util.ArrayList;
+import java.util.Stack;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
 // arraylist version
 public class test {

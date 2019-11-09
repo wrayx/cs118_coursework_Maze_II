@@ -43,12 +43,8 @@ public class GrandFinale {
             return deadEnd(robot);
         else if (numExits(3, robot) == 2)
             return corridor(robot);
-        else {
-            if (robot.getRuns() == 0)
-                return junction(robot);
-            else
-                return learnedJunction(robot);
-        }
+        else
+            return junction(robot);
     }
 
     /**
@@ -58,7 +54,7 @@ public class GrandFinale {
         remarkMap.resetRemarkMap();
         robotData.junctionsInfoToArray();
         robotData.resetJunctionsInfo();
-        // robotData.printJunctionArrRecord();
+        robotData.printJunctionArrRecord();
     }
 
     /**
@@ -191,53 +187,30 @@ public class GrandFinale {
     private int junction(IRobot robot) {
         startMode = false;
         int[] exits = exits(2, robot);
-        if (numExits(0, robot) == numExits(3, robot) - 1) // first time encounter this junction
-            robotData.addJunctionsInfo(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
-        // turn around when all exits are single mark exits
-        if (numExits(1, robot) == numExits(2, robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
-            return IRobot.BEHIND;
-        else if (numExits(0, robot) != 0) { // pick random passage to go
-            int heading = 0;
-            heading = hierarchySelectExit(robot);
-            robotData.peekJunctionsInfo().setArrivedHeading(MazeUtil.relativeToAbs(robot, heading));
-            return heading;
-        } else {
-            int heading = 0;
-            heading = hierarchySelectExit(robot);
-            robotData.peekJunctionsInfo().setArrivedHeading(MazeUtil.relativeToAbs(robot, heading));
-            robotData.popJunctionsInfo();
-            return heading;
-        }
-    }
-
-    private int learnedJunction(IRobot robot) {
-        startMode = false;
-        int[] exits = exits(2, robot);
         int index = robotData.searchJunctionArr(robot.getLocation().x, robot.getLocation().y);
         if (numExits(0, robot) == numExits(3, robot) - 1) // first time encounter this junction
             robotData.addJunctionsInfo(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
         // turn around when all exits are single mark exits
         if (numExits(1, robot) == numExits(2, robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
             return IRobot.BEHIND;
-        else if (numExits(0, robot) != 0 && index != -1 && !robotData.getJunctionArrRecordUsed(index)) {
+        else if (numExits(0, robot) != 0 && index != -1 && !robotData.getJunctionArrRecordUsed(index)){
             robot.setHeading(robotData.getJunctionArrRecordHeading(index));
             robotData.setJunctionArrRecordUsed(index);
-            if (robot.look(IRobot.AHEAD) != IRobot.WALL)
+            if (robot.look(IRobot.AHEAD) != IRobot.WALL){
+                robotData.peekJunctionsInfo().setLeaveHeading(robotData.getJunctionArrRecordHeading(index));
                 return IRobot.AHEAD;
+            }
             else {
                 robotData.rmJunctionArrRecord(index);
                 return junction(robot);
             }
-        } else if (numExits(0, robot) != 0) { // pick random passage to go
+        }
+        else {
             int heading = 0;
             heading = hierarchySelectExit(robot);
-            robotData.peekJunctionsInfo().setArrivedHeading(MazeUtil.relativeToAbs(robot, heading));
-            return heading;
-        } else {
-            int heading = 0;
-            heading = hierarchySelectExit(robot);
-            robotData.peekJunctionsInfo().setArrivedHeading(MazeUtil.relativeToAbs(robot, heading));
-            robotData.popJunctionsInfo();
+            robotData.peekJunctionsInfo().setLeaveHeading(MazeUtil.relativeToAbs(robot, heading));
+            if (numExits(0, robot) == 0)
+                robotData.popJunctionsInfo();
             return heading;
         }
     }
@@ -273,20 +246,20 @@ class MazeUtil {
 }
 
 class JunctionRecord {
-    private int arrivedHeading;
+    private int leaveHeading;
     private int juncX;
     private int juncY;
     private boolean used;
 
-    public JunctionRecord(int juncX, int juncY, int arrivedHeading) {
+    public JunctionRecord(int juncX, int juncY, int leaveHeading) {
         this.juncX = juncX;
         this.juncY = juncY;
-        this.arrivedHeading = arrivedHeading;
+        this.leaveHeading = leaveHeading;
         this.used = false;
     }
 
-    public int getArrivedHeading() {
-        return arrivedHeading;
+    public int getLeaveHeading() {
+        return leaveHeading;
     }
 
     public int getJuncX() {
@@ -301,8 +274,8 @@ class JunctionRecord {
         return used;
     }
 
-    public void setArrivedHeading(int heading) {
-        arrivedHeading = heading;
+    public void setLeaveHeading(int heading) {
+        leaveHeading = heading;
     }
 
     public void setUsed() {
@@ -330,7 +303,7 @@ class JunctionRecord {
         int i = 0;
         String[] headingStr = { "NORTH", "EAST", "SOUTH", "WEST" };
         int[] headings = { IRobot.NORTH, IRobot.EAST, IRobot.SOUTH, IRobot.WEST };
-        while (arrivedHeading != headings[i])
+        while (leaveHeading != headings[i])
             i++;
         return headingStr[i];
     }
@@ -344,12 +317,12 @@ class JunctionRecord {
             return false;
         }
         JunctionRecord junc = (JunctionRecord) o;
-        return juncX == junc.juncX && juncY == junc.juncY && arrivedHeading == junc.arrivedHeading;
+        return juncX == junc.juncX && juncY == junc.juncY;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(juncX, juncY, arrivedHeading);
+        return Objects.hash(juncX, juncY);
     }
 }
 
@@ -361,6 +334,7 @@ class RobotData {
 
     public RobotData() {
         junctionsInfo = new Stack<JunctionRecord>();
+        preJunctionsInfoArr = new ArrayList<JunctionRecord>();
     }
 
     public void resetJunctionsInfo() {
@@ -390,10 +364,10 @@ class RobotData {
      *
      * @param juncX
      * @param juncY
-     * @param arrivedHeading
+     * @param leaveHeading
      */
-    public void addJunctionsInfo(int juncX, int juncY, int arrivedHeading) {
-        JunctionRecord junc = new JunctionRecord(juncX, juncY, arrivedHeading);
+    public void addJunctionsInfo(int juncX, int juncY, int leaveHeading) {
+        JunctionRecord junc = new JunctionRecord(juncX, juncY, leaveHeading);
         junctionsInfo.push(junc);
     }
 
@@ -403,24 +377,14 @@ class RobotData {
     }
 
     public void junctionsInfoToArray() {
-        if (preJunctionsInfoArr == null) {
-            preJunctionsInfoArr = new ArrayList<JunctionRecord>(junctionsInfo);
-        } else {
-            preJunctionsInfoArr.clear();
-            preJunctionsInfoArr.forEach(e -> e.setUsed(false));
-            junctionsInfo.forEach(e -> preJunctionsInfoArr.add(e));
-        }
-        rmDuplicateJunctionArrRecord();
-        rmMistakenJunctionArrRecord();
+        preJunctionsInfoArr.clear();
+        preJunctionsInfoArr.forEach(e -> e.setUsed(false));
+        junctionsInfo.forEach(e -> preJunctionsInfoArr.add(e));
     }
 
     public int searchJunctionArr(int junctionX, int junctionY) {
-        for (int i = preJunctionsInfoArr.size() - 1; i >= 0; i--)
-            if (preJunctionsInfoArr.get(i).getJuncX() == junctionX
-                    && preJunctionsInfoArr.get(i).getJuncY() == junctionY)
-                return i;
-        // finished the loop and there still isn't any match
-        return -1;
+        JunctionRecord temp = new JunctionRecord(junctionX, junctionY, 0);
+        return preJunctionsInfoArr.indexOf(temp);
     }
 
     public void rmJunctionArrRecord(int i) {
@@ -428,7 +392,7 @@ class RobotData {
     }
 
     public int getJunctionArrRecordHeading(int i) {
-        return preJunctionsInfoArr.get(i).getArrivedHeading();
+        return preJunctionsInfoArr.get(i).getLeaveHeading();
     }
 
     public void setJunctionArrRecordUsed(int i) {
@@ -443,31 +407,9 @@ class RobotData {
         return preJunctionsInfoArr.get(i).getUsed();
     }
 
-    public void rmDuplicateJunctionArrRecord() {
-        LinkedHashSet<JunctionRecord> set = new LinkedHashSet<JunctionRecord>(preJunctionsInfoArr);
-        preJunctionsInfoArr.clear();
-        preJunctionsInfoArr.addAll(set);
-    }
-
     public void printJunctionArrRecord() {
         System.out.println("-preJunctionsInfoArr-");
         preJunctionsInfoArr.forEach(e -> e.printJunction());
-    }
-
-    // remove previous incorrect directions
-    public void rmMistakenJunctionArrRecord() {
-        ArrayList<JunctionRecord> temp = new ArrayList<JunctionRecord>();
-        for (int i = 0; i < preJunctionsInfoArr.size(); i++) {
-            int j = 0;
-            while (j < i) {
-                if (preJunctionsInfoArr.get(i).getJuncX() == preJunctionsInfoArr.get(j).getJuncX()
-                        && preJunctionsInfoArr.get(i).getJuncY() == preJunctionsInfoArr.get(j).getJuncY()) {
-                    temp.add(preJunctionsInfoArr.get(j));
-                }
-                j++;
-            }
-        }
-        temp.forEach(e -> preJunctionsInfoArr.remove(e));
     }
 }
 
