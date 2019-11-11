@@ -172,10 +172,18 @@ public class Ex1 {
         }
         else if (numOfExits == 2)
             return corridor(robot);
-        else if (numOfExits == 3)
+        else if (numOfExits == 3 && passageExits(robot) != 0)
             return junction(robot);
-        else
+        else if (numOfExits == 3) {
+            explorerMode = false;
+            return exploreControl(robot);  // switch back into explorer mode
+        }
+        else if (numOfExits == 4 && passageExits(robot) != 0)
             return crossroads(robot);
+        else {
+            explorerMode = false;
+            return exploreControl(robot);  // switch back into explorer mode
+        }
     }
 
     /**

@@ -1,313 +1,254 @@
 import java.util.Stack;
+import java.util.Objects;
 import uk.ac.warwick.dcs.maze.logic.IRobot;
-// arraylist version
+
 public class test {
-    private int pollRun = 0;
-    private static final int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
-    private Remark remarkMap;
-    private boolean startMode; // turn off when it get out from the first deadend
+    private int pollRun = 0; // Incremented after each pass
+    private RobotData robotData; // Data store for junctions
+    private int[] directions = { IRobot.AHEAD, IRobot.LEFT, IRobot.RIGHT, IRobot.BEHIND };
+
     public void controlRobot(IRobot robot) {
-        int direction = 0;
-        if (pollRun == 0) {
-            remarkMap = new Remark();
-            startMode = true;
+        int direction;
+        if ((robot.getRuns() == 0) && (pollRun == 0)) {
+            robotData = new RobotData();
         }
         robot.face(exploreControl(robot));
-        // testing
-        remarkMap.printMarks(robot);
-        if (startMode)
-            remarkMap.markCurrentBlock(robot, 2);
         pollRun++;
+        robotData.printJunctionRecords();
     }
 
+    /**
+     * reset the data stored in robotdata with the reset button
+     */
     public void reset() {
-        remarkMap.printRemarkMap();
-        remarkMap.resetRemarkMap();
+        robotData.resetRobotData();
     }
 
-    private int exploreControl(IRobot robot) {
-        if (numOfPhyExits(robot) == 1)
+    /**
+     * @param robot the robot trying to guide
+     * @return the relative heading the robot should go to in exploring mode
+     */
+    public int exploreControl(IRobot robot) {
+        int numOfExits = numExits(1, robot);
+        if (numOfExits == 1) {
             return deadEnd(robot);
-        else if (numOfPhyExits(robot) == 2)
+        } else if (numOfExits == 2)
             return corridor(robot);
-        else
+        else if (numOfExits == 3)
             return junction(robot);
-    }
-
-    private int hierarchySelectExit(IRobot robot) {
-        int[] nmExits = noMarkExits(robot);
-        int[] smExits = singleMarkExits(robot);
-        int[] exits = exits(robot);
-        if (nmExits.length != 0)
-            return chooseRandomHeading(nmExits);
-        else if (smExits.length != 0)
-            return chooseRandomHeading(smExits);
         else
-            return chooseRandomHeading(exits);
+            return crossroads(robot);
     }
 
-    private Boolean isRoute(IRobot robot) { // mark physical corridor (not corner)
-        if (numOfPhyExits(robot) == 2){
-            for (int i = 0; i < directions.length; i++) {
-                if (robot.look(directions[i]) != IRobot.WALL && robot.look(reverseDirection(directions[i])) != IRobot.WALL)
-                    return true;
-            }
-        }// end if
-        return false;
+    /**
+     * @param type
+     * 0 - number of passage exits
+     * 1 - number of all non-wall exits
+     * @param robot
+     * @return number of different type of exits
+     */
+    private int numExits(int type, IRobot robot) {
+        int result = 0;
+        for (int direction : directions) {
+            if (type == 0 && robot.look(direction) == IRobot.PASSAGE)
+                result++;
+            if (type == 1 && robot.look(direction) != IRobot.WALL)
+                result++;
+        }
+        return result;
     }
 
-    private int numOfPhyExits(IRobot robot) {
-        int numOfExits = 0;
-        // Go through each of the direction to check whether there is a wall or not
-        for (int direction : directions) {
-            if (robot.look(direction) != IRobot.WALL)
-                numOfExits++;
-        }
-        return numOfExits;
-    } // end nonwallExits()
-
-    private int numOfExits(IRobot robot) {
-        int numOfExits = 0;
-        // Go through each of the direction to check whether there is a wall or not
-        for (int direction : directions) {
-            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) < 2)
-                numOfExits++;
-        }
-        return numOfExits;
-    } // end nonwallExits()
-
-    private int[] exits(IRobot robot) {
-        int[] exits = new int[numOfExits(robot)];
+    /**
+     * Find out all the exits that the robot can go to in different types
+     *
+     * @param type
+     * 0 - passage exits
+     * 1 - all non-wall exits
+     * @param robot that youre trying to guide
+     * @return an array of exits in different types that robot can turn to
+     */
+    private int[] exits(int type, IRobot robot) {
+        int[] exits = new int[numExits(type, robot)];
         int i = 0;
         for (int direction : directions) {
-            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) < 2)
+            if (type == 0 && robot.look(direction) == IRobot.PASSAGE)
+                exits[i++] = direction;
+            else if (type == 1 && robot.look(direction) != IRobot.WALL)
                 exits[i++] = direction;
         }
         return exits;
     }
 
-    private int numOfNoMarkExits(IRobot robot) {
-        int num = 0;
-        // Go through each of the direction to check whether there is a wall or not
-        for (int direction : directions) {
-            if (robot.look(direction) == IRobot.PASSAGE)
-                num++;
-        }
-        return num;
-    }
-
-    private int[] noMarkExits(IRobot robot) {
-        int[] nmExits = new int[numOfNoMarkExits(robot)];
-        int i = 0;
-        for (int direction : directions){
-            if (robot.look(direction) == IRobot.PASSAGE)
-                nmExits[i++] = direction;
-        }
-        return nmExits;
-    }
-
-    private int numOfSingleMarkExits(IRobot robot) {
-        int num = 0;
-        // Go through each of the direction to check whether there is a wall or not
-        for (int direction : directions) {
-            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) == 1)
-                num++;
-        }
-        return num;
-    }
-
-    private int[] singleMarkExits(IRobot robot) {
-        int[] smExits = new int[numOfSingleMarkExits(robot)];
-        int i = 0;
-        for (int direction : directions){
-            if (robot.look(direction) != IRobot.WALL && remarkMap.lookRemark(robot, direction) == 1)
-                smExits[i++] = direction;
-        }
-        return smExits;
-    }
-
+    /**
+     * numOfExits = 1
+     *
+     * @param robot that you are trying to guide if the robot isn't at the start if
+     *              the robot is at the start
+     * @return the direction that isn't a wall otherwise return behind
+     */
     private int deadEnd(IRobot robot) {
-        remarkMap.markCurrentBlock(robot, 2);
-        if (robot.look(IRobot.BEHIND) != IRobot.BEENBEFORE) {
-            int[] exits = exits(robot);
-            return exits[0];
+        int heading = IRobot.BEHIND;
+        if (robot.look(heading) != IRobot.BEENBEFORE) {
+            // explorerMode = true; // if it's still the very first step the robot took
+            heading = exits(1, robot)[0];
         }
-        return IRobot.BEHIND;
+        return heading;
     }
 
+    /**
+     * numOfExits = 2
+     *
+     * @param robot that you are trying to guide
+     * @return the direction that haven't been before if there is one otherwise just
+     *         choose one that doesn't make the robot to go back on itself
+     */
     private int corridor(IRobot robot) {
-        if (isRoute(robot))
-            remarkMap.markCurrentBlock(robot);
-        // exception for at the beginning of the graph
-        if (numOfExits(robot) == 0) {
-            for (int direction : directions) {
-                if (direction != IRobot.BEHIND && robot.look(direction) != IRobot.WALL)
-                    return direction;
-            }
-        }
-        int[] exits = exits(robot);
-        for (int exit : exits) {
-            if (exit != IRobot.BEHIND)
-                return exit;
-        }
+        int[] exits = exits(1, robot);
+        if (exits[0] == IRobot.BEHIND)
+            return exits[1];
         return exits[0];
     }
 
+    /**
+     * numOfExits = 3
+     *
+     * @param robot that you are trying to guide
+     * @return PASSAGE exits if exist if theres more than 1 PASSAGE exits, return
+     *         random one between them otherwise return random direction that
+     *         doesn’t cause a collision.
+     */
     private int junction(IRobot robot) {
-        startMode = false;
-        // turn around when all exits are single mark exits
-        if (numOfSingleMarkExits(robot) == numOfExits(robot) && remarkMap.lookRemark(robot, IRobot.BEHIND) < 2)
-            return IRobot.BEHIND; // numOfSingleMarkExits(robot) == numOfExits(robot) && robot.look(IRobot.BEHIND) != IRobot.WALL &&
-
-        return hierarchySelectExit(robot);
+        if (!robotData.containsJunctionRecord(robot.getLocation().x, robot.getLocation().y)) {
+            robotData.addJunctionRecords(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
+            return chooseRandomHeading(exits(0, robot));
+        }else {
+            if (robot.getLocation().x == robotData.getLastUnvisitedRecord().getJuncX() && robot.getLocation().y == robotData.getLastUnvisitedRecord().getJuncY()){
+                if (numExits(0, robot) != 0) {
+                    return chooseRandomHeading(exits(0, robot));
+                }
+                robot.setHeading(((robotData.getLastUnvisitedRecord().getArrived() - IRobot.NORTH + 2) % 4) + IRobot.NORTH);
+                robotData.transportRecord();
+                return IRobot.AHEAD;
+            }
+            return deadEnd(robot);
+        }
     }
 
-    public int reverseDirection(int direction) {
-        int standard;
-        if (direction - IRobot.NORTH < 4 && direction - IRobot.NORTH >= 0)
-            standard = IRobot.NORTH;
-        else
-            standard = IRobot.AHEAD;
-
-        if ((direction - standard) < 2)
-            return direction + 2;
-        else
-            return direction - 2;
+    private int crossroads(IRobot robot) {
+        return junction(robot);
     }
 
+    /**
+     * @param directionsChooseFrom
+     * @return a random direction that was choosed from given array And if there is
+     *         only one value in the given array, that 1 will be returned
+     */
     private int chooseRandomHeading(int[] directionsChooseFrom) {
-        if (directionsChooseFrom.length == 1)
-            return directionsChooseFrom[0];
-        // Generate number from 0-length (exclusive the length)
-        Double temp = Math.random()*(directionsChooseFrom.length);
+        Double temp = Math.random() * (directionsChooseFrom.length);
         int randno = temp.intValue();
         return directionsChooseFrom[randno];
     }
 }
 
-class Remark {
-    private ArrayList<Block> remarkMap;
+class JunctionRecorder {
+    private int juncX;
+    private int juncY;
+    private int arrived;
 
-    /**
-     * Initialize table
-     * @param ylength
-     * @param xlength
-     */
-    public Remark() {
-        remarkMap = new ArrayList<Block>();
+    public JunctionRecorder(int juncX, int juncY, int arrived) {
+        this.juncX = juncX;
+        this.juncY = juncY;
+        this.arrived = arrived;
     }
 
-    public void resetRemarkMap(){
-        remarkMap.clear();
+    public int getJuncX() {
+        return this.juncX;
     }
 
-    public int relativeToAbs(IRobot robot, int relativeHeading) {
-        return ( (robot.getHeading() - IRobot.NORTH) + (relativeHeading - IRobot.AHEAD) ) % 4 + IRobot.NORTH;
-    }
-    /**
-     * @param heading
-     * @return 0 for never been here before, 1 for been here once, 2 for been here twice
-     */
-    public int lookRemark(IRobot robot, int relativeHeading) {
-        int absHeading = relativeToAbs(robot, relativeHeading);
-        int index;
-        if (absHeading == IRobot.NORTH)
-            index = searchRemark(robot.getLocation().x, robot.getLocation().y - 1);
-        else if (absHeading == IRobot.EAST)
-            index = searchRemark(robot.getLocation().x + 1, robot.getLocation().y);
-        else if (absHeading == IRobot.SOUTH)
-            index = searchRemark(robot.getLocation().x, robot.getLocation().y + 1);
-        else
-            index = searchRemark(robot.getLocation().x - 1, robot.getLocation().y);
-
-        if (index == -1) // that place that haven't been stored in the arraylist
-            return 0;
-        return remarkMap.get(index).getTimes();
+    public void setJuncX(int juncX) {
+        this.juncX = juncX;
     }
 
-    public int searchRemark(int x, int y) {
-        for (int i = remarkMap.size() - 1; i >= 0; i--)
-            if (remarkMap.get(i).getX() == x && remarkMap.get(i).getY() == y)
-                return i;
-        // finished the loop and there still isn't any match
-        return -1;
+    public int getJuncY() {
+        return this.juncY;
     }
 
-    public void markCurrentBlock(IRobot robot) {
-        int index = searchRemark(robot.getLocation().x, robot.getLocation().y);
-        if (index == -1){
-            Block b = new Block(robot.getLocation().x, robot.getLocation().y);
-            remarkMap.add(b);
+    public void setJuncY(int juncY) {
+        this.juncY = juncY;
+    }
+
+    public int getArrived() {
+        return this.arrived;
+    }
+
+    public void setArrived(int arrived) {
+        this.arrived = arrived;
+    }
+
+    public String getArrivedStr() {
+        int i = 0;
+        String[] headingStr = { "NORTH", "EAST", "SOUTH", "WEST" };
+        int[] headings = { IRobot.NORTH, IRobot.EAST, IRobot.SOUTH, IRobot.WEST };
+        while (arrived != headings[i])
+            i++;
+        return headingStr[i];
+    }
+
+    public void printJunctionRecord() {
+        System.out.println(" (x=" + juncX + ",y=" + juncY + ")" + " heading " + getArrivedStr());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == this)
+            return true;
+        if (!(o instanceof JunctionRecorder)) {
+            return false;
         }
-        index = searchRemark(robot.getLocation().x, robot.getLocation().y);
-        remarkMap.get(index).addTimes();
+        JunctionRecorder junc = (JunctionRecorder) o;
+        return juncX == junc.juncX && juncY == junc.juncY;
     }
 
-    public void markCurrentBlock(IRobot robot, int num) {
-        int index = searchRemark(robot.getLocation().x, robot.getLocation().y);
-        if (index == -1){
-            Block b = new Block(robot.getLocation().x, robot.getLocation().y);
-            remarkMap.add(b);
-        }
-        remarkMap.get(searchRemark(robot.getLocation().x, robot.getLocation().y)).setTimes(num);
-    }
-
-    public void printMarks(IRobot robot) {
-        if (searchRemark(robot.getLocation().x, robot.getLocation().y) != -1)
-            System.out.println("[++"+robot.getLocation().y+", "+robot.getLocation().x+"++] - " + remarkMap.get(searchRemark(robot.getLocation().x, robot.getLocation().y)).getTimes());
-        else
-        System.out.println("Recording");
-
-    }
-
-    public void printRemarkMap() {
-        System.out.println("-- Marked Places --");
-        remarkMap.forEach(e -> e.printBlock());
+    @Override
+    public int hashCode() {
+        return Objects.hash(juncX, juncY);
     }
 }
 
-class Block {
-    private int x;
-    private int y;
-    private int times;
+class RobotData {
+    private Stack<JunctionRecorder> junctionRecords;
+    private Stack<JunctionRecorder> visitedJunctionRecords;
 
-    public Block(int x, int y) {
-        this.x = x;
-        this.y = y;
-        this.times = 0;
+    public RobotData() {
+        junctionRecords = new Stack<JunctionRecorder>();
+        visitedJunctionRecords = new Stack<JunctionRecorder>();
     }
 
-    public int getX() {
-        return this.x;
+    public void resetRobotData() {
+        junctionRecords.clear();
+        visitedJunctionRecords.clear();
     }
 
-    public void setX(int x) {
-        this.x = x;
+    public void addJunctionRecords(int juncX, int juncY, int arrived) {
+        JunctionRecorder temp = new JunctionRecorder(juncX, juncY, arrived);
+        junctionRecords.add(temp);
     }
 
-    public int getY() {
-        return this.y;
+    public JunctionRecorder getLastUnvisitedRecord() {
+        return junctionRecords.peek();
     }
 
-    public void setY(int y) {
-        this.y = y;
+    public void transportRecord() {
+        visitedJunctionRecords.push(junctionRecords.pop());
     }
 
-    public int getTimes() {
-        return this.times;
+    public void printJunctionRecords() {
+        System.out.println("++Junction Stack++");
+        junctionRecords.forEach(e -> e.printJunctionRecord());
     }
 
-    public void addTimes() {
-        times++;
+    public boolean containsJunctionRecord(int juncX, int juncY) {
+        JunctionRecorder temp = new JunctionRecorder(juncX, juncY, 0);
+        return visitedJunctionRecords.contains(temp) || junctionRecords.contains(temp);
     }
-
-    public void setTimes(int times) {
-        this.times = times;
-    }
-
-    public void printBlock() {
-        System.out.println("["+getX()+", "+getY()+"] -> " + getTimes());
-    }
-
 }
-
