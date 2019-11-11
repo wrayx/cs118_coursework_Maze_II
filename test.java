@@ -120,11 +120,22 @@ public class test {
     private int junction(IRobot robot) {
         if (!robotData.containsJunctionRecord(robot.getLocation().x, robot.getLocation().y)) {
             robotData.addJunctionRecords(robot.getLocation().x, robot.getLocation().y, robot.getHeading());
-            return chooseRandomHeading(exits(0, robot));
+            if (robot.getRuns() != 0 && robot.getLocation().x == robotData.peekLearnedJunctionRecords().getJuncX() && robot.getLocation().y == robotData.peekLearnedJunctionRecords().getJuncY()) {
+                robotData.getLastUnvisitedRecord().setLeaved(robotData.peekLearnedJunctionRecords().getLeaved());
+                robot.setHeading(robotData.popLearnedJunctionRecords().getLeaved());
+                return IRobot.AHEAD;
+            }
+            else {
+                int heading = chooseRandomHeading(exits(0, robot));
+                robotData.getLastUnvisitedRecord().setLeaved(relativeToAbs(robot, heading));
+                return heading;
+            }
         }else {
             if (robot.getLocation().x == robotData.getLastUnvisitedRecord().getJuncX() && robot.getLocation().y == robotData.getLastUnvisitedRecord().getJuncY()){
                 if (numExits(0, robot) != 0) {
-                    return chooseRandomHeading(exits(0, robot));
+                    int heading = chooseRandomHeading(exits(0, robot));
+                    robotData.getLastUnvisitedRecord().setLeaved(relativeToAbs(robot, heading));
+                    return heading;
                 }
                 robot.setHeading(((robotData.getLastUnvisitedRecord().getArrived() - IRobot.NORTH + 2) % 4) + IRobot.NORTH);
                 robotData.transportRecord();
@@ -148,17 +159,23 @@ public class test {
         int randno = temp.intValue();
         return directionsChooseFrom[randno];
     }
+
+    public static int relativeToAbs(IRobot robot, int relativeHeading) {
+        return ((robot.getHeading() - IRobot.NORTH) + (relativeHeading - IRobot.AHEAD)) % 4 + IRobot.NORTH;
+    }
 }
 
 class JunctionRecorder {
     private int juncX;
     private int juncY;
     private int arrived;
+    private int leaved;
 
     public JunctionRecorder(int juncX, int juncY, int arrived) {
         this.juncX = juncX;
         this.juncY = juncY;
         this.arrived = arrived;
+        this.leaved = arrived;
     }
 
     public int getJuncX() {
@@ -185,17 +202,25 @@ class JunctionRecorder {
         this.arrived = arrived;
     }
 
-    public String getArrivedStr() {
+    public int getLeaved() {
+        return this.leaved;
+    }
+
+    public void setLeaved(int leaved) {
+        this.leaved = leaved;
+    }
+
+    public String getDirectionStr(int direction) {
         int i = 0;
         String[] headingStr = { "NORTH", "EAST", "SOUTH", "WEST" };
         int[] headings = { IRobot.NORTH, IRobot.EAST, IRobot.SOUTH, IRobot.WEST };
-        while (arrived != headings[i])
+        while (direction != headings[i])
             i++;
         return headingStr[i];
     }
 
     public void printJunctionRecord() {
-        System.out.println(" (x=" + juncX + ",y=" + juncY + ")" + " heading " + getArrivedStr());
+        System.out.println(" (x=" + juncX + ",y=" + juncY + ")" + " heading " + getDirectionStr(getArrived()) + " - leaved with: " + getDirectionStr(getLeaved()));
     }
 
     @Override
@@ -218,15 +243,19 @@ class JunctionRecorder {
 class RobotData {
     private Stack<JunctionRecorder> junctionRecords;
     private Stack<JunctionRecorder> visitedJunctionRecords;
+    private static Stack<JunctionRecorder> learnedJunctionRecords;
 
     public RobotData() {
         junctionRecords = new Stack<JunctionRecorder>();
         visitedJunctionRecords = new Stack<JunctionRecorder>();
+        learnedJunctionRecords = new Stack<JunctionRecorder>();
     }
 
     public void resetRobotData() {
-        junctionRecords.clear();
+        while (!junctionRecords.empty())
+            learnedJunctionRecords.push(junctionRecords.pop());
         visitedJunctionRecords.clear();
+        printLearnedJunctionRecord();
     }
 
     public void addJunctionRecords(int juncX, int juncY, int arrived) {
@@ -236,6 +265,14 @@ class RobotData {
 
     public JunctionRecorder getLastUnvisitedRecord() {
         return junctionRecords.peek();
+    }
+
+    public JunctionRecorder peekLearnedJunctionRecords() {
+        return learnedJunctionRecords.peek();
+    }
+
+    public JunctionRecorder popLearnedJunctionRecords() {
+        return learnedJunctionRecords.pop();
     }
 
     public void transportRecord() {
@@ -250,5 +287,10 @@ class RobotData {
     public boolean containsJunctionRecord(int juncX, int juncY) {
         JunctionRecorder temp = new JunctionRecorder(juncX, juncY, 0);
         return visitedJunctionRecords.contains(temp) || junctionRecords.contains(temp);
+    }
+
+    public void printLearnedJunctionRecord() {
+        System.out.println("++ !Learned! Junction Stack++");
+        learnedJunctionRecords.forEach(e -> e.printJunctionRecord());
     }
 }
